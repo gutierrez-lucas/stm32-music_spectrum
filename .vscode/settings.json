@@ -1,0 +1,16 @@
+{
+    "stm32-for-vscode.openOCDPath": "C:\\USERS\\LUCAS-HOMEW\\APPDATA\\ROAMING\\CODE\\USER\\GLOBALSTORAGE\\BMD.STM32-FOR-VSCODE\\@XPACK-DEV-TOOLS\\OPENOCD\\0.12.0-2.1\\.CONTENT\\BIN\\OPENOCD.EXE",
+    "stm32-for-vscode.makePath": "C:\\USERS\\LUCAS-HOMEW\\APPDATA\\ROAMING\\CODE\\USER\\GLOBALSTORAGE\\BMD.STM32-FOR-VSCODE\\@XPACK-DEV-TOOLS\\WINDOWS-BUILD-TOOLS\\4.4.1-2.1\\.CONTENT\\BIN\\MAKE.EXE",
+    "cortex-debug.armToolchainPath": "C:\\PROGRAM FILES (X86)\\STMICROELECTRONICS\\STM32CUBECLT_1.15.0\\GNU-TOOLS-FOR-STM32\\BIN",
+    "cortex-debug.openocdPath": "C:\\USERS\\LUCAS-HOMEW\\APPDATA\\ROAMING\\CODE\\USER\\GLOBALSTORAGE\\BMD.STM32-FOR-VSCODE\\@XPACK-DEV-TOOLS\\OPENOCD\\0.12.0-2.1\\.CONTENT\\BIN\\OPENOCD.EXE",
+    "files.associations": {
+        "*.cpp": "cpp",
+        "fsm.h": "c",
+        "joystick.h": "c",
+        "morse.h": "c",
+        "main.h": "c",
+        "serial.h": "c",
+        "task.h": "c",
+        "freertos.h": "c"
+    }
+}
