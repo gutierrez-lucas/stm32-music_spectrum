@@ -18,6 +18,7 @@
 #include "fft.h"
 
 #include "../display/ssd1306.h"
+#include "../display/test.h"
 // I2C_HandleTypeDef hi2c2;
 UART_HandleTypeDef huart1;
 ADC_HandleTypeDef hadc1;
@@ -102,6 +103,8 @@ bool adc_conversion_done = false;
 
 struct cmpx complex_samples[BUFFER_SIZE];
 
+const uint8_t adc_to_point[409] = {0,0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,6,6,6,6,6,6,7,7,7,7,7,7,7,8,8,8,8,8,8,9,9,9,9,9,9,10,10,10,10,10,10,10,11,11,11,11,11,11,12,12,12,12,12,12,12,13,13,13,13,13,13,14,14,14,14,14,14,15,15,15,15,15,15,15,16,16,16,16,16,16,17,17,17,17,17,17,17,18,18,18,18,18,18,19,19,19,19,19,19,20,20,20,20,20,20,20,21,21,21,21,21,21,22,22,22,22,22,22,23,23,23,23,23,23,23,24,24,24,24,24,24,25,25,25,25,25,25,25,26,26,26,26,26,26,27,27,27,27,27,27,28,28,28,28,28,28,28,29,29,29,29,29,29,30,30,30,30,30,30,30,31,31,31,31,31,31,32,32,32,32,32,32,33,33,33,33,33,33,33,34,34,34,34,34,34,35,35,35,35,35,35,35,36,36,36,36,36,36,37,37,37,37,37,37,38,38,38,38,38,38,38,39,39,39,39,39,39,40,40,40,40,40,40,40,41,41,41,41,41,41,42,42,42,42,42,42,43,43,43,43,43,43,43,44,44,44,44,44,44,45,45,45,45,45,45,46,46,46,46,46,46,46,47,47,47,47,47,47,48,48,48,48,48,48,48,49,49,49,49,49,49,50,50,50,50,50,50,51,51,51,51,51,51,51,52,52,52,52,52,52,53,53,53,53,53,53,53,54,54,54,54,54,54,55,55,55,55,55,55,56,56,56,56,56,56,56,57,57,57,57,57,57,58,58,58,58,58,58,58,59,59,59,59,59,59,60,60,60,60,60,60,61,61,61,61,61,61,61,62,62,62,62,62,62,63,63,63,63,63,63};
+
 int main(void)
 {
 
@@ -116,6 +119,12 @@ int main(void)
 	MX_I2C1_Init();
 
 	printf("\r\n\r\nACD system\r\n");
+
+	// printf("----\r\n");
+	// for(uint16_t i=0; i<409; i++){
+	// 	printf("%d,", i*64/409);
+	// }
+	// printf("-----\r\n");
 
 	HAL_ADC_Start_DMA(&hadc1, (uint16_t*)adc_buffer, BUFFER_SIZE); //Link DMA to ADC1
 	HAL_TIM_Base_Start(&htim3);
@@ -132,6 +141,7 @@ int main(void)
 }
 
 UBaseType_t task_watermark;
+uint8_t display_buffer[128];
 
 void display_task(void *pvParameters){
 
@@ -157,18 +167,23 @@ void display_task(void *pvParameters){
 			}else{
 				connected = 1;
 				printf("Display connected.\r\n" );
-
 				SSD1306_Clear();
-				xTaskNotifyGive(print_task_handle);
+				SSD1306_Putc("Connected", &Font_7x10, 1);
+				SSD1306_UpdateScreen();
 			}
 		}else{
-			SSD1306_GotoXY (10,10); 
-			SSD1306_Puts ("HELLO WORLD", &Font_11x18, 1); 
-			SSD1306_UpdateScreen(); 
-			ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(50));
+			trace_on(3);
+			SSD1306_Clear();
+			for(uint8_t i = 0; i < 128; i++){
+				SSD1306_DrawPixel(i, display_buffer[i], 1);
+			}
+			SSD1306_UpdateScreen();
+			trace_off(3);
 		}
 		
-		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(150));
+		xTaskNotifyGive(print_task_handle);
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		// vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(150));
 	}
 	printf("Destroying Display task 1 \r\n");
 	vTaskDelete(display_task_handle);
@@ -186,13 +201,19 @@ void print_task(void *pvParameters){
 	while(1){
 		if( adc_conversion_done == true){
 			// printf("ADC conversion done\r\n");
-			trace_on(3);
 			adc_conversion_done = false;
-			for(int i = 0; i < BUFFER_SIZE; i++){
-				complex_samples[i].real = (float)adc_buffer[i];
-				complex_samples[i].imag = 0;
-				// printf("V%07d\r\n", adc_buffer[i]);
+			// for(int i = 0; i < BUFFER_SIZE; i++){
+			for(int i = 0; i < 128; i++){
+				// complex_samples[i].real = (float)adc_buffer[i];
+				// complex_samples[i].imag = 0;
+				display_buffer[i] = adc_to_point[adc_buffer[i*2]/10];
+				// sprintf(str_buff, "%d\r\n", adc_buffer[i]);
+				// sprintf(str_buff, "%d\r\n", display_buffer[i]);
+				// printf(str_buff);
 			}
+			xTaskNotifyGive(display_task_handle);
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+			continue;
 			FFT(&complex_samples, BUFFER_SIZE);
 			for(int i = 0; i < BUFFER_SIZE; i++){
 				sprintf(str_buff, "%d", (int)complex_samples[i].real);
@@ -201,9 +222,8 @@ void print_task(void *pvParameters){
 				printf(str_buff);
 			}
 			task_watermark = uxTaskGetStackHighWaterMark(NULL);	
-			trace_off(3);
 		}
-		vTaskDelay(pdMS_TO_TICKS(1));
+		// vTaskDelay(pdMS_TO_TICKS(1));
 	}
 	printf("Destroying print task \r\n");
 	vTaskDelete(print_task_handle);
@@ -308,7 +328,8 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 6;
   htim3.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim3.Init.Period = 60000;
+//   htim3.Init.Period = 60000;
+  htim3.Init.Period = 600;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
