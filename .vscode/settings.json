@@ -11,6 +11,9 @@
         "main.h": "c",
         "serial.h": "c",
         "task.h": "c",
-        "freertos.h": "c"
+        "freertos.h": "c",
+        "fft.h": "c",
+        "twid256.h": "c",
+        "ssd1306.h": "c"
     }
 }

@@ -15,12 +15,24 @@
 // printf
 #include <errno.h>
 #include <sys/unistd.h> // STDOUT_FILENO, STDERR_FILENO
+#include "fft.h"
 
+#include "../display/ssd1306.h"
 // I2C_HandleTypeDef hi2c2;
 UART_HandleTypeDef huart1;
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 TIM_HandleTypeDef htim3;
+I2C_HandleTypeDef hi2c1;
+
+void SystemClock_Config(void);
+
+static void MX_GPIO_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_DMA_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_I2C1_Init(void);
 
 int _write(int file, char *data, int len){
 		 if ((file != STDOUT_FILENO) && (file != STDERR_FILENO)){
@@ -78,21 +90,17 @@ void trace_off(int tag){
 
 void adc_task(void *pvParameters);
 void print_task(void *pvParameters);
+void display_task(void *pvParameters);
 xTaskHandle adc_task_handle = NULL;
 xTaskHandle print_task_handle = NULL;
+xTaskHandle display_task_handle = NULL;
 
-void SystemClock_Config(void);
-
-static void MX_GPIO_Init(void);
-static void MX_ADC1_Init(void);
-static void MX_DMA_Init(void);
-static void MX_TIM3_Init(void);
-static void MX_USART1_UART_Init(void);
-
-#define BUFFER_SIZE 200
+#define BUFFER_SIZE 256
 
 uint16_t adc_buffer[BUFFER_SIZE];
 bool adc_conversion_done = false;
+
+struct cmpx complex_samples[BUFFER_SIZE];
 
 int main(void)
 {
@@ -105,13 +113,18 @@ int main(void)
 	MX_TIM3_Init();
 	MX_DMA_Init();
 	MX_ADC1_Init();
+	MX_I2C1_Init();
 
 	printf("\r\n\r\nACD system\r\n");
 
-	HAL_ADC_Start_DMA(&hadc1, (uint16_t*)adc_buffer, BUFFER_SIZE-1); //Link DMA to ADC1
+	HAL_ADC_Start_DMA(&hadc1, (uint16_t*)adc_buffer, BUFFER_SIZE); //Link DMA to ADC1
+	HAL_TIM_Base_Start(&htim3);
 
 	xTaskCreate(print_task, "print_task", 300, NULL, tskIDLE_PRIORITY+1, &print_task_handle);
 	vTaskSetApplicationTaskTag( print_task_handle, ( void * ) 2 );
+	xTaskCreate(display_task, "display_task", 128, NULL, tskIDLE_PRIORITY+2, &display_task_handle);
+	vTaskSetApplicationTaskTag( display_task_handle, ( void * ) 1 );
+
 	vTaskStartScheduler();
 
 	while (1){
@@ -120,17 +133,75 @@ int main(void)
 
 UBaseType_t task_watermark;
 
-void print_task(void *pvParameters){
-	printf("PRINT task\r\n");
+void display_task(void *pvParameters){
+
+    UBaseType_t uxHighWaterMark;
+
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
+	printf("Display WaterMark at the beggining: %d words\r\n", uxHighWaterMark);
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+
+	static int connected = 0;
 
 	while(1){
+		if(connected == 0){
+			printf("Reseting display.. \r\n");
 
+			HAL_GPIO_WritePin(GPIOB, display_rst_pin, GPIO_PIN_RESET); // reset display
+			vTaskDelay(pdMS_TO_TICKS(100));
+			HAL_GPIO_WritePin(GPIOB, display_rst_pin, GPIO_PIN_SET);
 
+			HAL_StatusTypeDef res = SSD1306_Init(0x78); 
+			if( res != HAL_OK){
+				printf("Display connection err: %d\r\n", res);
+			}else{
+				connected = 1;
+				printf("Display connected.\r\n" );
+
+				SSD1306_Clear();
+				xTaskNotifyGive(print_task_handle);
+			}
+		}else{
+			SSD1306_GotoXY (10,10); 
+			SSD1306_Puts ("HELLO WORLD", &Font_11x18, 1); 
+			SSD1306_UpdateScreen(); 
+			ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(50));
+		}
+		
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(150));
+	}
+	printf("Destroying Display task 1 \r\n");
+	vTaskDelete(display_task_handle);
+}
+
+void print_task(void *pvParameters){
+	printf("PRINT task\r\n");
+	char str_buff[10];
+
+	task_watermark = uxTaskGetStackHighWaterMark(NULL);	
+	printf("waiting for display task .. \r\n");
+	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+	printf("Display task connected\r\n");
+	while(1){
 		if( adc_conversion_done == true){
+			// printf("ADC conversion done\r\n");
+			trace_on(3);
 			adc_conversion_done = false;
 			for(int i = 0; i < BUFFER_SIZE; i++){
-				printf("V%07d\r\n", adc_buffer[i]);
+				complex_samples[i].real = (float)adc_buffer[i];
+				complex_samples[i].imag = 0;
+				// printf("V%07d\r\n", adc_buffer[i]);
 			}
+			FFT(&complex_samples, BUFFER_SIZE);
+			for(int i = 0; i < BUFFER_SIZE; i++){
+				sprintf(str_buff, "%d", (int)complex_samples[i].real);
+				printf(str_buff);
+				sprintf(str_buff,",%d\r\n", (int)complex_samples[i].imag);
+				printf(str_buff);
+			}
+			task_watermark = uxTaskGetStackHighWaterMark(NULL);	
+			trace_off(3);
 		}
 		vTaskDelay(pdMS_TO_TICKS(1));
 	}
@@ -258,21 +329,22 @@ static void MX_TIM3_Init(void)
   }
 }
 
-// static void MX_I2C2_Init(void){
-// 	hi2c2.Instance = I2C2;
-// 	hi2c2.Init.ClockSpeed = 400000;
-// 	hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
-// 	hi2c2.Init.OwnAddress1 = 0;
-// 	hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-// 	hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-// 	hi2c2.Init.OwnAddress2 = 0;
-// 	hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-// 	hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-// 	if (HAL_I2C_Init(&hi2c2) != HAL_OK)
-// 	{
-// 		Error_Handler();
-// 	}
-// }
+static void MX_I2C1_Init(void){
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
 static void MX_USART1_UART_Init(void)
 {
 	huart1.Instance = USART1;
@@ -302,6 +374,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
 
+  HAL_GPIO_WritePin(GPIOB, display_rst_pin, GPIO_PIN_RESET);
+  GPIO_InitStruct.Pin = display_rst_pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   HAL_GPIO_WritePin(GPIOB, trace_3_Pin, GPIO_PIN_RESET);
   GPIO_InitStruct.Pin = trace_3_Pin;

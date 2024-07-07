@@ -64,6 +64,8 @@ void Error_Handler(void);
 #define trace_2_Pin GPIO_PIN_10
 #define trace_2_GPIO_Port GPIOA
 
+#define display_rst_pin  GPIO_PIN_5
+#define display_rst_port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
