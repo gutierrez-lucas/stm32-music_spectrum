@@ -18,6 +18,8 @@
 #include "fft.h"
 #include "task_utils.h"
 
+#include <math.h>
+
 #include "../display/ssd1306.h"
 #include "../display/test.h"
 
@@ -117,14 +119,12 @@ int main(void)
 
 UBaseType_t task_watermark;
 // uint8_t display_buffer[128];
-float max_frequency = 0;
-uint16_t max_amplitude = 0;
-uint8_t max_index = 0;
 
 void display_task(void *pvParameters){
 
 	printf("Display task\r\n");
 
+	uint32_t notification_message = 0;
 	char str_buff[10];
 	static int connected = 0;
 	uint16_t display_buffer;
@@ -155,13 +155,14 @@ void display_task(void *pvParameters){
 			}
 
 			SSD1306_GotoXY(80,10);
-			sprintf(str_buff, "%4d", (uint16_t)max_frequency);
+			sprintf(str_buff, "%4d", (uint16_t)notification_message);
 			SSD1306_Puts(str_buff, &Font_7x10, 1);
 			SSD1306_UpdateScreen();
 		}
 		
 		xTaskNotifyGive(process_task_handle);
-		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		xTaskNotifyWait(0, 0, &notification_message, portMAX_DELAY);
 	}
 	printf("Destroying Display task 1 \r\n");
 	vTaskDelete(display_task_handle);
@@ -172,12 +173,13 @@ void process_task(void *pvParameters){
 	printf("PRINT task\r\n");
 
 	char str_buff[10];
-	uint16_t auxiliar; 
 	uint16_t display_value;
 
-	printf("Waiting for display task .. \r\n");
+	uint32_t auxiliar, aux1; 
+	uint16_t max_amplitude = 0;
+	uint8_t max_index = 0;
+
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-	printf("Display connected\r\n");
 
 	while(1){
 		if( adc_conversion_done == true){
@@ -188,26 +190,29 @@ void process_task(void *pvParameters){
 			}
 			FFT(&complex_samples, BUFFER_SIZE);
 
-
-			max_frequency = 0;
 			max_index = 0;
 			max_amplitude = 0;
 
+			trace_on(AUXILIAR_TAG_2);
 			for(int i = 1; i <= BUFFER_SIZE/2; i++){
-				auxiliar = (uint16_t)sqrt((uint16_t)complex_samples[i].real*(uint16_t)complex_samples[i].real + (uint16_t)complex_samples[i].imag*(uint16_t)complex_samples[i].imag);
+// #define CONFIG_USE_MATH_ABS
+#ifdef CONFIG_USE_MATH_ABS
+				auxiliar = (uint16_t)sqrt((uint16_t)complex_samples[i].real*(uint16_t)complex_samples[i].real + (uint16_t)complex_samples[i].imag*(uint16_t)(uint16_t)complex_samples[i].imag);
+#else
+				auxiliar = (uint32_t)(complex_samples[i].real)<<1;
+				aux1 = (uint32_t)(complex_samples[i].imag)<<1;
+				auxiliar = (auxiliar+aux1)>>1;
+#endif
 				if(auxiliar > max_amplitude){
 					max_amplitude = auxiliar;
 					max_index = i;
 				}
-
 				display_value = adc_to_point[auxiliar/100];
 				xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 			}
-			max_frequency = max_index*FFT_BAND_RESOLUTION;
-			// printf("freq: %d | amp: %d | index: %d\r\n", max_frequency, max_amplitude, max_index);
-			xTaskNotifyGive(display_task_handle);
+			trace_off(AUXILIAR_TAG_2);
+			xTaskNotify(display_task_handle, (uint32_t)(max_index*FFT_BAND_RESOLUTION), eSetValueWithOverwrite); 
 		}
-		// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		vTaskDelay(pdMS_TO_TICKS(35));
 	}
 	printf("Destroying print task \r\n");
