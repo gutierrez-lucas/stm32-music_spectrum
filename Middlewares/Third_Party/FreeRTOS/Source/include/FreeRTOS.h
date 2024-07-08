@@ -28,6 +28,15 @@
 #ifndef INC_FREERTOS_H
 #define INC_FREERTOS_H
 
+extern void trace_on(int tag);
+extern void trace_off(int tag);
+
+#ifndef traceTASK_SWITCHED_IN
+	#define traceTASK_SWITCHED_IN() trace_on((int)pxCurrentTCB->pxTaskTag)
+#endif
+#ifndef traceTASK_SWITCHED_OUT
+	#define traceTASK_SWITCHED_OUT() trace_off((int)pxCurrentTCB->pxTaskTag)
+#endif
 /*
  * Include the generic headers required for the FreeRTOS port being used.
  */
@@ -51,6 +60,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
 
 /* Application specific configuration options. */
 #include "FreeRTOSConfig.h"
