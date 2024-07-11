@@ -10,6 +10,7 @@ void trace_toggle(int tag);
 #define IDLE_TASK_TAG	 0 
 #define DISPLAY_TASK_TAG 1
 #define PROCESS_TASK_TAG	 2
+#define LEDMATRIX_TASK_TAG	6 
 #define AUXILIAR_TAG_1	 3
 #define AUXILIAR_TAG_2	 4
 
