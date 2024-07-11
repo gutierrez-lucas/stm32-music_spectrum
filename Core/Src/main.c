@@ -104,7 +104,7 @@ int main(void)
 	printf("\r\n\r\nSpectrum Analyzer\r\n");
 
 	printf("Creating display task: ");
-	xTaskCreate(display_task, "display_task", 500, NULL, tskIDLE_PRIORITY+2, &display_task_handle) != pdPASS ? printf(" ERR\r\n") : printf(" OK\r\n");
+	xTaskCreate(display_task, "display_task", 500, NULL, tskIDLE_PRIORITY+1, &display_task_handle) != pdPASS ? printf(" ERR\r\n") : printf(" OK\r\n");
 
 	printf("Creating process task: ");
 	xTaskCreate(process_task, "process_task", 128, NULL, tskIDLE_PRIORITY+2, &process_task_handle) != pdPASS ? printf(" ERR\r\n") : printf(" OK\r\n");
@@ -124,7 +124,6 @@ int main(void)
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
 	HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
 	htim2.Instance->CCR1 = 0;
-	trace_toggle(AUXILIAR_TAG_2);
 }
 
 UBaseType_t task_watermark;
@@ -137,9 +136,10 @@ void ledmatrix_task(void *pvParameters){
 	HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
 	xTaskNotifyGive(display_task_handle);
 	while(1){
-		// matrix_test_secuential(ROTATION_0);
-		// HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
-		vTaskDelay(100);
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		matrix_test_secuential(ROTATION_0);
+		HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
+		xTaskNotifyGive(process_task_handle);
 	}
 
 }
@@ -193,7 +193,7 @@ void display_task(void *pvParameters){
 			SSD1306_Puts(str_buff, &Font_7x10, 1);
 			SSD1306_UpdateScreen();
 		}
-		xTaskNotifyGive(process_task_handle);
+		xTaskNotifyGive(ledmatrix_task_handle);
 		// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		xTaskNotifyWait(0, 0, &notification_message, portMAX_DELAY);
 	}
@@ -226,7 +226,6 @@ void process_task(void *pvParameters){
 			max_index = 0;
 			max_amplitude = 0;
 
-			trace_on(AUXILIAR_TAG_2);
 			for(int i = 1; i <= BUFFER_SIZE/2; i++){
 // #define CONFIG_USE_MATH_ABS
 #ifdef CONFIG_USE_MATH_ABS
@@ -243,10 +242,10 @@ void process_task(void *pvParameters){
 				display_value = adc_to_point[auxiliar/100];
 				xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 			}
-			trace_off(AUXILIAR_TAG_2);
 			xTaskNotify(display_task_handle, (uint32_t)(max_index*FFT_BAND_RESOLUTION), eSetValueWithOverwrite);
 		}
-		vTaskDelay(pdMS_TO_TICKS(35));
+		ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
+		// vTaskDelay(pdMS_TO_TICKS(500));
 	}
 	printf("Destroying print task \r\n");
 	vTaskDelete(process_task_handle);
@@ -256,8 +255,6 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc1){
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1){
-	// trace_toggle(AUXILIAR_TAG_2);
-	// printf("1\r\n");
 	adc_conversion_done = true;
 }
 
