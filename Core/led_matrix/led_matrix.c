@@ -130,7 +130,7 @@ void matrix_test_secuential(rotation_t rotation){
 }
 
 void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rotation){
-	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
+	// rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
 	for(uint8_t i=y1; i<=y2; i++){
 		rgb_matrix_set_pixel(&rgbw_arr, LIMITS, x, i, rotation);
 	}

@@ -58,10 +58,10 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 
-#define trace_1_Pin GPIO_PIN_9
-#define trace_1_GPIO_Port GPIOA
-#define trace_2_Pin GPIO_PIN_10
-#define trace_2_GPIO_Port GPIOA
+#define trace_1_Pin GPIO_PIN_13
+#define trace_1_GPIO_Port GPIOB
+#define trace_2_Pin GPIO_PIN_14
+#define trace_2_GPIO_Port GPIOB
 #define trace_3_Pin GPIO_PIN_15
 #define trace_3_GPIO_Port GPIOB
 #define trace_4_Pin GPIO_PIN_8
