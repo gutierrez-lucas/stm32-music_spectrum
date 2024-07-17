@@ -18,6 +18,7 @@
         "led_matrix.h": "c",
         "task_utils.h": "c",
         "queue.h": "c",
-        "display.h": "c"
+        "display.h": "c",
+        "ws2812.h": "c"
     }
 }

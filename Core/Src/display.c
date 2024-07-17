@@ -24,8 +24,6 @@ xTaskHandle display_task_handle = NULL;
 I2C_HandleTypeDef hi2c1;
 QueueHandle_t display_queue;
 
-static void led_matrix_DMA();
-
 bool my_display_init(){
 	MX_I2C1_Init();
 	xTaskCreate(display_task, "display_task", 500, NULL, tskIDLE_PRIORITY+1, &display_task_handle) != pdPASS ? printf("DISPLAY: TASK ERR\r\n") : printf("DISPLAY: TASK OK\r\n");
@@ -45,7 +43,6 @@ void display_task(void *pvParameters){
 	uint16_t display_buffer;
 
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-	// xTaskNotifyGive(main_task_handle);
 
 	while(1){
 		trace_on(DISPLAY_TASK_TAG);
@@ -60,7 +57,7 @@ void display_task(void *pvParameters){
 		sprintf(str_buff, "%4d", (uint16_t)notification_message);
 		SSD1306_Puts(str_buff, &Font_7x10, 1);
 		SSD1306_UpdateScreen();
-		// xTaskNotifyGive(ledmatrix_task_handle);
+		xTaskNotifyGive(ledmatrix_task_handle);
 		trace_off(DISPLAY_TASK_TAG);
 	}
 	printf("DISPLAY: TASK END\r\n");

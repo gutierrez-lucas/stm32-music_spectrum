@@ -1,4 +1,4 @@
-#include "../led_matrix/led_matrix.h"
+#include "../led-ws2812/ws2812.h"
 #include "main.h"
 #include <stdint.h>
 #include <stdbool.h>

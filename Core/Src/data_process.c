@@ -65,11 +65,9 @@ void process_task(void *pvParameters){
 	uint8_t max_index = 0;
 
 	xTaskNotifyGive(main_task_handle);
-	// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
 	while(1){
 		if( adc_conversion_done == true){
-			// printf("ADC: Conversion done\r\n");
 			adc_conversion_done = false;
 			for(int i = 0; i < BUFFER_SIZE; i++){
 				complex_samples[i].real = (float)adc_buffer[i];
@@ -96,26 +94,24 @@ void process_task(void *pvParameters){
 					max_index = i;
 				}
 				display_value = adc_to_point[auxiliar/100];
-				trace_on(PROCESS_TASK_TAG);
 				xQueueSend(display_queue, (uint16_t*)&display_value, 0);
-				trace_off(PROCESS_TASK_TAG);
 
-				// if(aux2_counter < 8){
-				// 	led_matrix_acum += auxiliar;
-				// 	aux_counter++;
-				// 	if(aux_counter == 4){
-				// 		led_matrix_acum /= 400;
-				// 		if(led_matrix_acum > 408){
-				// 			led_matrix_acum = 8;
-				// 		}else{
-				// 			led_matrix_acum = adc_to_matrix_point[led_matrix_acum];
-				// 		}
-				// 		xQueueSend(led_matrix_queue, (uint8_t*)&led_matrix_acum, 0);
-				// 		led_matrix_acum = 0;
-				// 		aux_counter = 0;
-				// 		aux2_counter++;
-				// 	}
-				// }
+				if(aux2_counter < 8){
+					led_matrix_acum += auxiliar;
+					aux_counter++;
+					if(aux_counter == 4){
+						led_matrix_acum /= 400;
+						if(led_matrix_acum > 408){
+							led_matrix_acum = 8;
+						}else{
+							led_matrix_acum = adc_to_matrix_point[led_matrix_acum];
+						}
+						xQueueSend(led_matrix_queue, (uint8_t*)&led_matrix_acum, 0);
+						led_matrix_acum = 0;
+						aux_counter = 0;
+						aux2_counter++;
+					}
+				}
 
 			}
 			xTaskNotify(display_task_handle, (uint32_t)(max_index*FFT_BAND_RESOLUTION), eSetValueWithOverwrite);
