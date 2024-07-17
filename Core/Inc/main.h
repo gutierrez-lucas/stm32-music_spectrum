@@ -58,6 +58,8 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 
+#define BUFFER_SIZE 256
+
 #define trace_1_Pin GPIO_PIN_13
 #define trace_1_GPIO_Port GPIOB
 #define trace_2_Pin GPIO_PIN_14
@@ -71,6 +73,9 @@ void Error_Handler(void);
 
 #define display_rst_pin GPIO_PIN_5
 #define display_rst_pin_GPIO_Port GPIOB
+
+#define encoder_button_pin GPIO_PIN_0
+#define encoder_button_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
