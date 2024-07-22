@@ -16,8 +16,6 @@ xTaskHandle process_task_handle = NULL;
 extern xTaskHandle main_task_handle;
 extern xTaskHandle display_task_handle;
 
-extern bool using_menu;
-
 static void data_process_DMA();
 static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
@@ -61,21 +59,30 @@ void process_task(void *pvParameters){
 
 	char str_buff[10];
 	uint16_t display_value;
+	notification_union notify;
 
 	uint32_t auxiliar, aux1;
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
 
 	uint32_t menu_notification;
+	bool selected_use_matrix = true, selected_use_display = true;
+	uint8_t selected_plot = SELECTION_FREQ_PLOT;
 
 	xTaskNotifyGive(main_task_handle);
 
 	while(1){
-		if( adc_conversion_done == true && using_menu == false){
+		if( adc_conversion_done == true ){
 			adc_conversion_done = false;
 			for(int i = 0; i < BUFFER_SIZE; i++){
 				complex_samples[i].real = (float)adc_buffer[i];
 				complex_samples[i].imag = 0;
+			}
+			if(selected_plot == SELECTION_TIME_PLOT){
+				for(int i = 0; i < BUFFER_SIZE; i+=2){
+					display_value = adc_to_point[(uint16_t)complex_samples[i].real/100];
+					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
+				}
 			}
 			FFT(&complex_samples, BUFFER_SIZE);
 
@@ -97,8 +104,10 @@ void process_task(void *pvParameters){
 					max_amplitude = auxiliar;
 					max_index = i;
 				}
-				display_value = adc_to_point[auxiliar/100];
-				xQueueSend(display_queue, (uint16_t*)&display_value, 0);
+				if(selected_plot == SELECTION_FREQ_PLOT){
+					display_value = adc_to_point[auxiliar/100];
+					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
+				}
 
 				if(aux2_counter < 8){
 					led_matrix_acum += auxiliar;
@@ -116,14 +125,39 @@ void process_task(void *pvParameters){
 						aux2_counter++;
 					}
 				}
-
 			}
-			xTaskNotify(display_task_handle, (uint32_t)(max_index*FFT_BAND_RESOLUTION), eSetValueWithOverwrite);
+			if(selected_use_display == false){
+				notify.configuration |= 0xf0;
+			}else{
+				notify.configuration &= ~0xf0;
+			}
+			if(selected_use_matrix == false){
+				notify.configuration |= 0x0f;
+			}else{
+				notify.configuration &= ~0x0f;
+			}
+			notify.payload = max_index*FFT_BAND_RESOLUTION;
+			xTaskNotify(display_task_handle, notify.stream, eSetValueWithOverwrite);
 		}
-		// ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
-		// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
-		// vTaskDelay(pdMS_TO_TICKS(500));
+		if(menu_notification != 0){
+			if(menu_notification == SELECTION_FREQ_PLOT){
+				selected_plot = SELECTION_FREQ_PLOT;
+			}else if(menu_notification == SELECTION_TIME_PLOT){
+				selected_plot = SELECTION_TIME_PLOT;
+			}else if(menu_notification == SELECTION_POWER_PLOT){
+				selected_plot = SELECTION_POWER_PLOT;
+			}else if(menu_notification == SELECION_MATRIX_OFF){
+				selected_use_matrix = false;
+			}else if(menu_notification == SELECION_MATRIX_ON){
+				selected_use_matrix = true;
+			}else if(menu_notification == SELECTION_DISPLAY_OFF){
+				selected_use_display = false;
+			}else if(menu_notification == SELECTION_DISPLAY_ON){
+				selected_use_display = true;
+			}
+			menu_notification = 0;
+		}
 	}
 	printf("Destroying print task \r\n");
 	vTaskDelete(process_task_handle);

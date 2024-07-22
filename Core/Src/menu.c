@@ -65,6 +65,7 @@ bool menu_init(){
 }
 
 void return_to_main_menu(){
+	SSD1306_Clear();
 	menu_id = MAIN_MENU_ID;
 	current_selected_element = 0;
 	current_menu = 0;
@@ -80,6 +81,8 @@ void menu_task(void *pvParameters){
 	uint8_t current_action = UNPRESSED, last_action = UNUSED;
 	uint8_t button_lock = 0;
 	uint32_t notify_to_process = 0;
+	bool use_display = true;
+	bool use_matrix = true;
 
 	using_menu = true;
 
@@ -127,15 +130,27 @@ void menu_task(void *pvParameters){
 						return_to_main_menu();
 						break;
 					case 2:
-						display_menu_conf(current_selected_element);
+						display_menu_conf(current_selected_element, use_display, use_matrix);
 						menu_id = CONF_MENU_ID;
 						break;
 					case 21:
-						notify_to_process = SELECION_MATRIX_OFF;
+						if(use_matrix == true){
+							notify_to_process = SELECION_MATRIX_OFF;
+							use_matrix = false;
+						}else{
+							notify_to_process = SELECION_MATRIX_ON;
+							use_matrix = true;
+						}
 						return_to_main_menu();
 						break;
 					case 22:
-						notify_to_process = SELECTION_DISPLAY_OFF;
+						if(use_display == true){
+							notify_to_process = SELECTION_DISPLAY_OFF;
+							use_display = false;
+						}else{
+							notify_to_process = SELECTION_DISPLAY_ON;
+							use_display = true;
+						}
 						return_to_main_menu();
 						break;
 					case 23:
@@ -271,25 +286,41 @@ void display_menu_plot(uint8_t selected){
 	SSD1306_UpdateScreen();
 }
 
-void display_menu_conf(uint8_t selected){
+void display_menu_conf(uint8_t selected, bool use_display, bool use_matrix){
 	SSD1306_Fill (0);
 	if( selected == 1){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
-		SSD1306_Puts("MATRIX OFF", &Font_7x10, 0);
+		if( use_matrix == true){
+			SSD1306_Puts("MATRIX ON", &Font_7x10, 0);
+		}else{
+			SSD1306_Puts("MATRIX OFF", &Font_7x10, 0);
+		}
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
-		SSD1306_Puts("MATRIX OFF", &Font_7x10, 1);
+		if( use_matrix == true){
+			SSD1306_Puts("MATRIX ON", &Font_7x10, 1);
+		}else{
+			SSD1306_Puts("MATRIX OFF", &Font_7x10, 1);
+		}
 	}
 	if( selected == 2){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
-		SSD1306_Puts("DISPLAY OFF", &Font_7x10, 0);
+		if( use_display == true ){
+			SSD1306_Puts("DISPLAY ON", &Font_7x10, 0);
+		}else{
+			SSD1306_Puts("DISPLAY OFF", &Font_7x10, 0);
+		}
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
-		SSD1306_Puts("DISPLAY OFF", &Font_7x10, 1);
+		if( use_display == true ){
+			SSD1306_Puts("DISPLAY ON", &Font_7x10, 1);
+		}else{
+			SSD1306_Puts("DISPLAY OFF", &Font_7x10, 1);
+		}
 	}
 	if( selected == 3){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);

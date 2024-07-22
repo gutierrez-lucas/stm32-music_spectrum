@@ -8,7 +8,9 @@
 #define SELECTION_TIME_PLOT      2
 #define SELECTION_POWER_PLOT     3
 #define SELECION_MATRIX_OFF      4
+#define SELECION_MATRIX_ON       7 
 #define SELECTION_DISPLAY_OFF    5
+#define SELECTION_DISPLAY_ON     8
 #define SELECTION_CHANGE_FREQ    6
 
 int16_t get_encoder();

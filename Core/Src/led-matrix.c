@@ -42,7 +42,7 @@ bool ledmatrix_init(){
 void ledmatrix_task(void *pvParameters){
 
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
+	notification_union notify;
 	uint8_t lock = 0;
 		
 	led_matrix_queue = xQueueCreate(8, sizeof(uint8_t));
@@ -54,17 +54,19 @@ void ledmatrix_task(void *pvParameters){
 	xTaskNotifyGive(main_task_handle);
 
 	while(1){
-		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		if(lock++ == 3){
-			lock = 0;
-			rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
+		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
+		if(!(notify.configuration &= 0x0f)){
+			if(lock++ == 3){
+				lock = 0;
+				rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
+			}
+			matrix_test_pyramid(ROTATION_0);
+			// for(uint8_t i = 1; i <= 8; i++){
+			// 	xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
+			// 	matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
+			// }
+			HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
 		}
-		matrix_test_pyramid(ROTATION_0);
-		// for(uint8_t i = 1; i <= 8; i++){
-		// 	xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
-		// 	matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
-		// }
-		HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
 		xTaskNotifyGive(menu_task_handle);
 	}
 

@@ -8,6 +8,7 @@
 #include "display.h"
 #include "../display/ssd1306.h"
 #include "serial.h"
+#include "menu.h"
 
 void display_task(void *pvParameters);
 static void MX_I2C1_Init(void);
@@ -41,21 +42,29 @@ void display_task(void *pvParameters){
 	bool res = false;
 	uint16_t display_buffer;
 
+	notification_union notify;
+
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
 	while(1){
-		xTaskNotifyWait(0, 0, &notification_message, portMAX_DELAY);
-		SSD1306_Clear();
-		for(uint8_t i = 0; i < 128; i++){
-			xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
-			SSD1306_DrawLine(i, 64, i, 64-display_buffer, 1);
-		}
+		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
+		if(!(notify.configuration &= 0xf0)){
+			SSD1306_Clear();
+			for(uint8_t i = 0; i < 128; i++){
+				xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
+				SSD1306_DrawLine(i, 64, i, 64-display_buffer, 1);
+			}
 
-		SSD1306_GotoXY(80,10);
-		sprintf(str_buff, "%4d", (uint16_t)notification_message);
-		SSD1306_Puts(str_buff, &Font_7x10, 1);
+			SSD1306_GotoXY(80,10);
+			sprintf(str_buff, "%4d", notify.payload);
+			SSD1306_Puts(str_buff, &Font_7x10, 1);
+		}else{
+			SSD1306_GotoXY(0,24);
+			sprintf(str_buff, "NO DISP", notify.payload);
+			SSD1306_Puts(str_buff, &Font_16x26, 1);
+		}
 		SSD1306_UpdateScreen();
-		xTaskNotifyGive(ledmatrix_task_handle);
+		xTaskNotify(ledmatrix_task_handle, notify.stream, eSetValueWithOverwrite);
 	}
 	printf("DISPLAY: TASK END\r\n");
 	vTaskDelete(display_task_handle);

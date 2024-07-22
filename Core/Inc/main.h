@@ -36,8 +36,12 @@ void trace_toggle(int tag);
 #define AUXILIAR_TAG_1	    3
 #define AUXILIAR_TAG_2	    4
 
-#ifdef __cplusplus
-}
-#endif
+typedef union notification_union{
+    uint32_t stream;
+    struct{
+        uint16_t configuration;
+        uint16_t payload;
+    }
+}notification_union;
 
 #endif /* __MAIN_H */
