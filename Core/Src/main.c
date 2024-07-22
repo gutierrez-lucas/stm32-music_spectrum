@@ -14,7 +14,6 @@
 #include "data_process.h"
 #include "menu.h"
 
-#include "task_utils.h"
 #include "serial.h"
 
 extern xTaskHandle ledmatrix_task_handle;
@@ -39,7 +38,8 @@ int main(void){
 	MX_GPIO_Init();
 	MX_DMA_Init();
 
-	printf("\r\n\r\nSpectrum Analyzer\r\n");
+	printf("\r\n\r\n-----------\r\n");
+	printf("Spectrum Analyzer\r\n-----------\r\n");
 
 	if(my_display_init() == false){
 		printf("Display task error\r\n");
@@ -83,9 +83,12 @@ void main_task(void *pvParameters){
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 	printf("MAIN: process ready\r\n");
 	vTaskPrioritySet(process_task_handle, tskIDLE_PRIORITY+2);
-
+	printf("MAIN: releasing menu\r\n");
+	vTaskPrioritySet(menu_task_handle, tskIDLE_PRIORITY+2);
+	xTaskNotifyGive(menu_task_handle);
 	printf("MAIN: TASK END\r\n");
-	vTaskDelete(main_task_handle);
+	vTaskSuspend(NULL);
+	// vTaskDelete(NULL);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){

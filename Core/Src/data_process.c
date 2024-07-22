@@ -6,7 +6,7 @@
 #include "event_groups.h"
 
 #include "data_process.h"
-#include "task_utils.h"
+#include "menu.h"
 #include "serial.h"
 #include "fft.h"
 
@@ -15,6 +15,8 @@ void process_task(void *pvParameters);
 xTaskHandle process_task_handle = NULL;
 extern xTaskHandle main_task_handle;
 extern xTaskHandle display_task_handle;
+
+extern bool using_menu;
 
 static void data_process_DMA();
 static void MX_ADC1_Init(void);
@@ -64,10 +66,12 @@ void process_task(void *pvParameters){
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
 
+	uint32_t menu_notification;
+
 	xTaskNotifyGive(main_task_handle);
 
 	while(1){
-		if( adc_conversion_done == true){
+		if( adc_conversion_done == true && using_menu == false){
 			adc_conversion_done = false;
 			for(int i = 0; i < BUFFER_SIZE; i++){
 				complex_samples[i].real = (float)adc_buffer[i];
@@ -116,7 +120,9 @@ void process_task(void *pvParameters){
 			}
 			xTaskNotify(display_task_handle, (uint32_t)(max_index*FFT_BAND_RESOLUTION), eSetValueWithOverwrite);
 		}
-		ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
+		// ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
+		// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
 		// vTaskDelay(pdMS_TO_TICKS(500));
 	}
 	printf("Destroying print task \r\n");

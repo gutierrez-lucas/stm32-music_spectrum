@@ -6,7 +6,6 @@
 #include "event_groups.h"
 
 #include "display.h"
-#include "task_utils.h"
 #include "../display/ssd1306.h"
 #include "serial.h"
 
@@ -45,7 +44,6 @@ void display_task(void *pvParameters){
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
 	while(1){
-		trace_on(DISPLAY_TASK_TAG);
 		xTaskNotifyWait(0, 0, &notification_message, portMAX_DELAY);
 		SSD1306_Clear();
 		for(uint8_t i = 0; i < 128; i++){
@@ -58,7 +56,6 @@ void display_task(void *pvParameters){
 		SSD1306_Puts(str_buff, &Font_7x10, 1);
 		SSD1306_UpdateScreen();
 		xTaskNotifyGive(ledmatrix_task_handle);
-		trace_off(DISPLAY_TASK_TAG);
 	}
 	printf("DISPLAY: TASK END\r\n");
 	vTaskDelete(display_task_handle);

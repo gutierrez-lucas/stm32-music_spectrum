@@ -7,7 +7,6 @@
 
 #include "../led-ws2812/ws2812.h"
 #include "led-matrix.h"
-#include "task_utils.h"
 #include "serial.h"
 
 TIM_HandleTypeDef htim2;
@@ -15,6 +14,7 @@ static void MX_TIM2_Init(void);
 DMA_HandleTypeDef hdma_tim2_ch1;
 
 extern xTaskHandle main_task_handle;
+extern xTaskHandle menu_task_handle;
 extern xTaskHandle process_task_handle;
 
 void ledmatrix_task(void *pvParameters);
@@ -59,13 +59,13 @@ void ledmatrix_task(void *pvParameters){
 			lock = 0;
 			rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
 		}
-		// matrix_test_pyramid(ROTATION_0);
-		for(uint8_t i = 1; i <= 8; i++){
-			xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
-			matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
-		}
+		matrix_test_pyramid(ROTATION_0);
+		// for(uint8_t i = 1; i <= 8; i++){
+		// 	xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
+		// 	matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
+		// }
 		HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
-		xTaskNotifyGive(process_task_handle);
+		xTaskNotifyGive(menu_task_handle);
 	}
 
 	printf("Destroying LMatrix task\r\n");
