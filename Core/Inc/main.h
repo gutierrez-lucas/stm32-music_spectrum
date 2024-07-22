@@ -38,10 +38,12 @@ void trace_toggle(int tag);
 
 typedef union notification_union{
     uint32_t stream;
-    struct{
+    struct {
         uint16_t configuration;
         uint16_t payload;
-    }
+    }section;
 }notification_union;
+
+void print_binary_32(uint32_t number);
 
 #endif /* __MAIN_H */

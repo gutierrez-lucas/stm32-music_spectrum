@@ -80,9 +80,9 @@ void menu_task(void *pvParameters){
 	display_draw_menu();
 	uint8_t current_action = UNPRESSED, last_action = UNUSED;
 	uint8_t button_lock = 0;
-	uint32_t notify_to_process = 0;
-	bool use_display = true;
-	bool use_matrix = true;
+
+	notification_union menu_selection;
+	menu_selection.stream = 0;
 
 	using_menu = true;
 
@@ -98,7 +98,9 @@ void menu_task(void *pvParameters){
 				using_menu = true;
 			}else{
 				xTaskNotifyGive(process_task_handle);
-				xTaskNotify(process_task_handle, notify_to_process, eSetValueWithOverwrite);
+				// print_binary_32(menu_selection.stream);
+				xTaskNotify(process_task_handle, menu_selection.stream, eSetValueWithOverwrite);
+				notify_to_process = 0;
 				ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 			}
 			idle_encoder_position = current_encoder_position;
@@ -118,43 +120,31 @@ void menu_task(void *pvParameters){
 						menu_id = PLOT_MENU_ID;
 						break;
 					case 11:
-						notify_to_process = SELECTION_FREQ_PLOT;
+						set_plot_mode_freq(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
 					case 12:
-						notify_to_process = SELECTION_TIME_PLOT;
+						set_plot_mode_time(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
 					case 13:
-					    notify_to_process = SELECTION_POWER_PLOT;		
+						set_plot_mode_power(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
 					case 2:
-						display_menu_conf(current_selected_element, use_display, use_matrix);
+						display_menu_conf(current_selected_element, check_use_display(menu_selection.section.configuration), check_use_matrix(menu_selection.section.configuration));
 						menu_id = CONF_MENU_ID;
 						break;
 					case 21:
-						if(use_matrix == true){
-							notify_to_process = SELECION_MATRIX_OFF;
-							use_matrix = false;
-						}else{
-							notify_to_process = SELECION_MATRIX_ON;
-							use_matrix = true;
-						}
+					    toggle_use_matrix(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
 					case 22:
-						if(use_display == true){
-							notify_to_process = SELECTION_DISPLAY_OFF;
-							use_display = false;
-						}else{
-							notify_to_process = SELECTION_DISPLAY_ON;
-							use_display = true;
-						}
+						toggle_use_display(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
 					case 23:
-						notify_to_process = SELECTION_CHANGE_FREQ;
+						// notify_to_process = SELECTION_CHANGE_FREQ;
 						return_to_main_menu();
 						break;
 					case 3:

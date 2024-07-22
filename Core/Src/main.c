@@ -196,3 +196,12 @@ void assert_failed(uint8_t *file, uint32_t line)
 	/* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+void print_binary_32(uint32_t number){
+	printf("0b");
+	for(int i = 31; i >= 0; i--){
+		printf("%d", (number & (1 << i)) >> i);
+		if(i == 15){ printf("|"); }
+	}
+	printf("\r\n");
+}

@@ -5,6 +5,8 @@
 #include "queue.h"
 #include "event_groups.h"
 
+#include "main.h"
+#include "menu.h"
 #include "../led-ws2812/ws2812.h"
 #include "led-matrix.h"
 #include "serial.h"
@@ -55,7 +57,7 @@ void ledmatrix_task(void *pvParameters){
 
 	while(1){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
-		if(!(notify.configuration &= 0x0f)){
+		if(check_use_matrix(notify.section.configuration)){
 			if(lock++ == 3){
 				lock = 0;
 				rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));

@@ -65,9 +65,7 @@ void process_task(void *pvParameters){
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
 
-	uint32_t menu_notification;
-	bool selected_use_matrix = true, selected_use_display = true;
-	uint8_t selected_plot = SELECTION_FREQ_PLOT;
+	notification_union menu_notification;
 
 	xTaskNotifyGive(main_task_handle);
 
@@ -78,7 +76,7 @@ void process_task(void *pvParameters){
 				complex_samples[i].real = (float)adc_buffer[i];
 				complex_samples[i].imag = 0;
 			}
-			if(selected_plot == SELECTION_TIME_PLOT){
+			if(check_plot_mode_time(menu_notification.section.configuration)){
 				for(int i = 0; i < BUFFER_SIZE; i+=2){
 					display_value = adc_to_point[(uint16_t)complex_samples[i].real/100];
 					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
@@ -104,7 +102,7 @@ void process_task(void *pvParameters){
 					max_amplitude = auxiliar;
 					max_index = i;
 				}
-				if(selected_plot == SELECTION_FREQ_PLOT){
+				if(check_plot_mode_freq(menu_notification.section.configuration)){
 					display_value = adc_to_point[auxiliar/100];
 					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 				}
@@ -126,38 +124,10 @@ void process_task(void *pvParameters){
 					}
 				}
 			}
-			if(selected_use_display == false){
-				notify.configuration |= 0xf0;
-			}else{
-				notify.configuration &= ~0xf0;
-			}
-			if(selected_use_matrix == false){
-				notify.configuration |= 0x0f;
-			}else{
-				notify.configuration &= ~0x0f;
-			}
-			notify.payload = max_index*FFT_BAND_RESOLUTION;
-			xTaskNotify(display_task_handle, notify.stream, eSetValueWithOverwrite);
+			menu_notification.section.payload = max_index*FFT_BAND_RESOLUTION;
+			xTaskNotify(display_task_handle, menu_notification.stream, eSetValueWithOverwrite);
 		}
 		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
-		if(menu_notification != 0){
-			if(menu_notification == SELECTION_FREQ_PLOT){
-				selected_plot = SELECTION_FREQ_PLOT;
-			}else if(menu_notification == SELECTION_TIME_PLOT){
-				selected_plot = SELECTION_TIME_PLOT;
-			}else if(menu_notification == SELECTION_POWER_PLOT){
-				selected_plot = SELECTION_POWER_PLOT;
-			}else if(menu_notification == SELECION_MATRIX_OFF){
-				selected_use_matrix = false;
-			}else if(menu_notification == SELECION_MATRIX_ON){
-				selected_use_matrix = true;
-			}else if(menu_notification == SELECTION_DISPLAY_OFF){
-				selected_use_display = false;
-			}else if(menu_notification == SELECTION_DISPLAY_ON){
-				selected_use_display = true;
-			}
-			menu_notification = 0;
-		}
 	}
 	printf("Destroying print task \r\n");
 	vTaskDelete(process_task_handle);

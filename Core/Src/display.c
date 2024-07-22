@@ -48,7 +48,7 @@ void display_task(void *pvParameters){
 
 	while(1){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
-		if(!(notify.configuration &= 0xf0)){
+		if(check_use_display(notify.section.configuration)){
 			SSD1306_Clear();
 			for(uint8_t i = 0; i < 128; i++){
 				xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
@@ -56,11 +56,11 @@ void display_task(void *pvParameters){
 			}
 
 			SSD1306_GotoXY(80,10);
-			sprintf(str_buff, "%4d", notify.payload);
+			sprintf(str_buff, "%4d", notify.section.payload);
 			SSD1306_Puts(str_buff, &Font_7x10, 1);
 		}else{
 			SSD1306_GotoXY(0,24);
-			sprintf(str_buff, "NO DISP", notify.payload);
+			sprintf(str_buff, "NO DISP");
 			SSD1306_Puts(str_buff, &Font_16x26, 1);
 		}
 		SSD1306_UpdateScreen();
