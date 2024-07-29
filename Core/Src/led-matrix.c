@@ -62,17 +62,16 @@ void ledmatrix_task(void *pvParameters){
 				lock = 0;
 				rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
 			}
-			matrix_test_pyramid(ROTATION_0);
-			// for(uint8_t i = 1; i <= 8; i++){
-			// 	xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
-			// 	matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
-			// }
+			// matrix_test_pyramid(ROTATION_0);
+			for(uint8_t i = 1; i <= 8; i++){
+				xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
+				matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
+			}
 			HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
 		}
 		xTaskNotifyGive(menu_task_handle);
 	}
 
-	printf("Destroying LMatrix task\r\n");
 	vTaskDelete(ledmatrix_task_handle);
 }
 

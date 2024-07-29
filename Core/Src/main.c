@@ -38,8 +38,7 @@ int main(void){
 	MX_GPIO_Init();
 	MX_DMA_Init();
 
-	printf("\r\n\r\n-----------\r\n");
-	printf("Spectrum Analyzer\r\n-----------\r\n");
+	printf("\r\nSpectrum Analyzer\r\n");
 
 	if(my_display_init() == false){
 		printf("Display task error\r\n");
@@ -55,6 +54,7 @@ int main(void){
 	}
 
 	xTaskCreate(main_task, "main_task", 128, NULL, tskIDLE_PRIORITY+1, &main_task_handle) != pdPASS ? printf("MAIN: TASK ERR\r\n") : printf("MAIN: TASK OK\r\n");
+	vTaskSetApplicationTaskTag(main_task_handle, ( void * ) MAIN_TASK_TAG);
 	vTaskStartScheduler();
 
 	while (1){
@@ -62,12 +62,9 @@ int main(void){
 }
 
 void main_task(void *pvParameters){
-	printf("MAIN - TASK\r\n");
-
 	if( display_init() == false){
 		printf("Display task error\r\n");
 	}
-
 	printf("MAIN: display ready\r\n");
 	printf("MAIN: waiting for menu\r\n");
 	xTaskNotifyGive(menu_task_handle);
@@ -87,8 +84,7 @@ void main_task(void *pvParameters){
 	vTaskPrioritySet(menu_task_handle, tskIDLE_PRIORITY+2);
 	xTaskNotifyGive(menu_task_handle);
 	printf("MAIN: TASK END\r\n");
-	vTaskSuspend(NULL);
-	// vTaskDelete(NULL);
+	vTaskDelete(main_task_handle);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -154,8 +150,8 @@ static void MX_GPIO_Init(void)
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-	HAL_GPIO_WritePin(GPIOB, trace_1_Pin|trace_2_Pin|trace_3_Pin, GPIO_PIN_RESET);
-	GPIO_InitStruct.Pin = trace_1_Pin|trace_2_Pin|trace_3_Pin;
+	HAL_GPIO_WritePin(GPIOB, trace_1_Pin|trace_2_Pin|trace_3_Pin|trace_6_Pin, GPIO_PIN_RESET);
+	GPIO_InitStruct.Pin = trace_1_Pin|trace_2_Pin|trace_3_Pin|trace_6_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
@@ -196,6 +192,99 @@ void assert_failed(uint8_t *file, uint32_t line)
 	/* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+// 
+void trace_toggle(int tag){
+	switch(tag){
+		case(IDLE_TASK_TAG):
+			HAL_GPIO_TogglePin(trace_1_GPIO_Port, trace_1_Pin);
+			break;
+		case(DISPLAY_TASK_TAG):
+            HAL_GPIO_TogglePin(trace_5_GPIO_Port, trace_5_Pin);
+			break;
+		case(PROCESS_TASK_TAG):
+			HAL_GPIO_TogglePin(trace_3_GPIO_Port, trace_3_Pin);
+			break;
+		case(LEDMATRIX_TASK_TAG):
+			HAL_GPIO_TogglePin(trace_4_GPIO_Port, trace_4_Pin);
+			break;
+		case(MENU_TASK_TAG):
+			HAL_GPIO_TogglePin(trace_6_GPIO_Port, trace_6_Pin);
+			break;
+        // case(MAIN_TASK_TAG):
+		// 	HAL_GPIO_TogglePin(trace_2_GPIO_Port, trace_2_Pin);
+        //     break;
+        case(AUXILIAR_TAG_1):
+			HAL_GPIO_TogglePin(trace_2_GPIO_Port, trace_2_Pin);
+            break;
+        // case(AUXILIAR_TAG_2):
+        //     // HAL_GPIO_TogglePin(trace_5_GPIO_Port, trace_5_Pin);
+        //     break;
+		default: 
+			break;
+	}
+}
+
+void trace_on(int tag){
+	switch(tag){
+		case(IDLE_TASK_TAG):
+			HAL_GPIO_WritePin(trace_1_GPIO_Port, trace_1_Pin, GPIO_PIN_SET);
+			break;
+		case(DISPLAY_TASK_TAG):
+            HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_SET);
+			break;
+		case(PROCESS_TASK_TAG):
+			HAL_GPIO_WritePin(trace_3_GPIO_Port, trace_3_Pin, GPIO_PIN_SET);
+			break;
+		case(LEDMATRIX_TASK_TAG):
+			HAL_GPIO_WritePin(trace_4_GPIO_Port, trace_4_Pin, GPIO_PIN_SET);
+			break;
+		case(MENU_TASK_TAG):
+			HAL_GPIO_WritePin(trace_6_GPIO_Port, trace_6_Pin, GPIO_PIN_SET);
+			break;
+		// case(MAIN_TASK_TAG):
+		// 	HAL_GPIO_WritePin(trace_2_GPIO_Port, trace_2_Pin, GPIO_PIN_SET);
+		// 	break;	
+        case(AUXILIAR_TAG_1):
+			HAL_GPIO_WritePin(trace_2_GPIO_Port, trace_2_Pin, GPIO_PIN_SET);
+            break;
+        // case(AUXILIAR_TAG_2):
+        //     // HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_SET);
+        //     break;
+		default: 
+			break;
+	}
+}
+
+void trace_off(int tag){
+	switch(tag){
+		case(IDLE_TASK_TAG):
+			HAL_GPIO_WritePin(trace_1_GPIO_Port, trace_1_Pin, GPIO_PIN_RESET);
+			break;
+		case(DISPLAY_TASK_TAG):
+            HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_RESET);
+			break;
+		case(PROCESS_TASK_TAG):
+			HAL_GPIO_WritePin(trace_3_GPIO_Port, trace_3_Pin, GPIO_PIN_RESET);
+			break;
+		case(LEDMATRIX_TASK_TAG):
+			HAL_GPIO_WritePin(trace_4_GPIO_Port, trace_4_Pin, GPIO_PIN_RESET);
+			break;
+		case(MENU_TASK_TAG):
+			HAL_GPIO_WritePin(trace_6_GPIO_Port, trace_6_Pin, GPIO_PIN_RESET);
+			break;
+		// case(MAIN_TASK_TAG):
+		// 	HAL_GPIO_WritePin(trace_2_GPIO_Port, trace_2_Pin, GPIO_PIN_RESET);
+		// 	break;
+        case(AUXILIAR_TAG_1):
+			HAL_GPIO_WritePin(trace_2_GPIO_Port, trace_2_Pin, GPIO_PIN_RESET);
+            break;
+        // case(AUXILIAR_TAG_2):
+        //     // HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_RESET);
+        //     break;
+		default: 
+			break;
+	}
+}
 
 void print_binary_32(uint32_t number){
 	printf("0b");

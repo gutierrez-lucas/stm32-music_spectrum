@@ -5,13 +5,16 @@
 #include "task.h"
 
 #include "menu.h"
-#include "../display/bitmap.h"
+#include "data_process.h"
+// #include "../display/bitmap.h"
 #include "../display/ssd1306.h"
 #include "serial.h"
 
 xTaskHandle menu_task_handle = NULL;
 extern xTaskHandle main_task_handle;
 extern xTaskHandle process_task_handle;
+
+extern void change_max_freq(uint8_t freq);
 
 int16_t get_encoder();
 void menu_task(void *pvParameters);
@@ -34,14 +37,24 @@ typedef enum action_t{
 	UNPRESSED = 0
 }action_t;
 
+int16_t get_encoder();
+void display_menu_plot(uint8_t selected);
+void display_menu_main(uint8_t selected);
+bool menu_init();
+
 int16_t new_encoder_position = 0, last_encoder_position = 0, difference_position = 0;
 bool using_menu;
 uint8_t menu_id = 0;
 
+#define MENU_MAIN 0
+#define MENU_PLOT 1
+#define MENU_CONF 2 
+#define MENU_FREQ 3 
+
 #define MAIN_MENU_ID 0
 #define PLOT_MENU_ID 10
 #define CONF_MENU_ID 20
-#define METRICS_MENU_ID 30
+#define MAX_FREQ_MENU_ID 30
 
 #define FONT_HEIGHT 10
 #define FONT_WIDTH 7
@@ -73,16 +86,24 @@ void return_to_main_menu(){
 	idle_encoder_position = get_encoder();
 }
 
+void load_default_configuration(notification_union* foo){
+	foo->stream = 0;
+	set_max_freq_20k(foo->section.configuration);
+	set_plot_mode_freq(foo->section.configuration);
+	toggle_use_matrix(foo->section.configuration);
+	toggle_use_display(foo->section.configuration);
+	toggle_show_max_freq(foo->section.configuration);
+}
+
 void menu_task(void *pvParameters){
 
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-	display_draw_menu();
 	uint8_t current_action = UNPRESSED, last_action = UNUSED;
 	uint8_t button_lock = 0;
 
 	notification_union menu_selection;
-	menu_selection.stream = 0;
+	load_default_configuration(&menu_selection);
 
 	using_menu = true;
 
@@ -98,9 +119,7 @@ void menu_task(void *pvParameters){
 				using_menu = true;
 			}else{
 				xTaskNotifyGive(process_task_handle);
-				// print_binary_32(menu_selection.stream);
 				xTaskNotify(process_task_handle, menu_selection.stream, eSetValueWithOverwrite);
-				notify_to_process = 0;
 				ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 			}
 			idle_encoder_position = current_encoder_position;
@@ -111,11 +130,11 @@ void menu_task(void *pvParameters){
 					current_selected_element = 0;
 				}
 				switch(current_menu){
-					case 0:
+					case MENU_MAIN:
 						display_menu_main(current_selected_element);
 						menu_id = MAIN_MENU_ID;
 						break;
-					case 1:
+					case MENU_PLOT:
 						display_menu_plot(current_selected_element);
 						menu_id = PLOT_MENU_ID;
 						break;
@@ -131,8 +150,8 @@ void menu_task(void *pvParameters){
 						set_plot_mode_power(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
-					case 2:
-						display_menu_conf(current_selected_element, check_use_display(menu_selection.section.configuration), check_use_matrix(menu_selection.section.configuration));
+					case MENU_CONF:
+						display_menu_conf(current_selected_element, menu_selection.section.configuration);
 						menu_id = CONF_MENU_ID;
 						break;
 					case 21:
@@ -144,13 +163,29 @@ void menu_task(void *pvParameters){
 						return_to_main_menu();
 						break;
 					case 23:
-						// notify_to_process = SELECTION_CHANGE_FREQ;
+						toggle_show_max_freq(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
-					case 3:
+					case MENU_FREQ:
+						display_menu_max_freq(current_selected_element);
+						menu_id = MAX_FREQ_MENU_ID;
+						break;
+					case 31:
+						set_max_freq_20k(menu_selection.section.configuration);
+						change_max_freq(USE_20K);
+						return_to_main_menu();
+						break; 
+					case 32:
+						set_max_freq_10k(menu_selection.section.configuration);
+						change_max_freq(USE_10K);
 						return_to_main_menu();
 						break;
-					default: break;
+					case 33:
+						set_max_freq_5k(menu_selection.section.configuration);
+						change_max_freq(USE_5K);
+						return_to_main_menu();
+						break;
+					default:  printf("MENU: ERR unknown selection: %d\r\n", current_menu); break;
 				}
 			}
 			last_selected_element = current_selected_element;
@@ -183,33 +218,9 @@ void menu_task(void *pvParameters){
 					button_lock = 0;
 				}
 			}
-			vTaskDelay(pdMS_TO_TICKS(250));
+			vTaskDelay(pdMS_TO_TICKS(100));
 		}
     }
-}
-
-
-void display_draw_menu(){
-	bool mode = 0;
-	uint8_t iterations = 0;
-
-	while(iterations++!=2){
-		SSD1306_Clear();
-		if(mode == 1){
-		SSD1306_DrawBitmap(0,0,&dick_bitmap,128,64,1);
-		SSD1306_GotoXY(2,2);
-		SSD1306_Puts("UNLP,", &Font_7x10, 1);
-
-			mode = 0;
-		}else{
-		SSD1306_DrawBitmap(0,0,&dick_bitmap_2,128,64,1);
-		SSD1306_GotoXY(2,2);
-		SSD1306_Puts("UNLP,", &Font_7x10, 1);
-			mode = 1;
-		}
-		SSD1306_UpdateScreen();
-		vTaskDelay(pdMS_TO_TICKS(1000));
-	}
 }
 
 void display_menu_main(uint8_t selected){
@@ -235,11 +246,11 @@ void display_menu_main(uint8_t selected){
 	if( selected == 3){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-		SSD1306_Puts("METRICS", &Font_7x10, 0);
+		SSD1306_Puts("CHANGE FREQ", &Font_7x10, 0);
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-		SSD1306_Puts("METRICS", &Font_7x10, 1);
+		SSD1306_Puts("CHANGE FREQ", &Font_7x10, 1);
 	}
 	SSD1306_UpdateScreen();
 }
@@ -271,17 +282,49 @@ void display_menu_plot(uint8_t selected){
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-		SSD1306_Puts("POWER_PLOT", &Font_7x10, 1);
+		SSD1306_Puts("POWER PLOT", &Font_7x10, 1);
 	}
 	SSD1306_UpdateScreen();
 }
 
-void display_menu_conf(uint8_t selected, bool use_display, bool use_matrix){
+void display_menu_max_freq(uint8_t selected){
 	SSD1306_Fill (0);
 	if( selected == 1){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
-		if( use_matrix == true){
+		SSD1306_Puts("MAX 20kHZ", &Font_7x10, 0);
+	}else{
+		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
+		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
+		SSD1306_Puts("MAX 20HZ", &Font_7x10, 1);
+	}
+	if( selected == 2){
+		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
+		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
+		SSD1306_Puts("MAX 10kHZ", &Font_7x10, 0);
+	}else{
+		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
+		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
+		SSD1306_Puts("MAX 10kHZ", &Font_7x10, 1);
+	}
+	if( selected == 3){
+		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
+		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
+		SSD1306_Puts("MAX 5kHZ", &Font_7x10, 0);
+	}else{
+		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
+		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
+		SSD1306_Puts("MAX 5kHZ", &Font_7x10, 1);
+	}
+	SSD1306_UpdateScreen();
+}
+
+void display_menu_conf(uint8_t selected, notification_union foo){
+	SSD1306_Fill (0);
+	if( selected == 1){
+		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
+		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
+		if( check_use_matrix(foo.section.configuration) ){
 			SSD1306_Puts("MATRIX ON", &Font_7x10, 0);
 		}else{
 			SSD1306_Puts("MATRIX OFF", &Font_7x10, 0);
@@ -289,7 +332,7 @@ void display_menu_conf(uint8_t selected, bool use_display, bool use_matrix){
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
-		if( use_matrix == true){
+		if( check_use_matrix(foo.section.configuration) ){
 			SSD1306_Puts("MATRIX ON", &Font_7x10, 1);
 		}else{
 			SSD1306_Puts("MATRIX OFF", &Font_7x10, 1);
@@ -298,7 +341,7 @@ void display_menu_conf(uint8_t selected, bool use_display, bool use_matrix){
 	if( selected == 2){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
-		if( use_display == true ){
+		if( check_use_display(foo.section.configuration) ){
 			SSD1306_Puts("DISPLAY ON", &Font_7x10, 0);
 		}else{
 			SSD1306_Puts("DISPLAY OFF", &Font_7x10, 0);
@@ -306,7 +349,7 @@ void display_menu_conf(uint8_t selected, bool use_display, bool use_matrix){
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
-		if( use_display == true ){
+		if( check_use_display(foo.section.configuration) ){
 			SSD1306_Puts("DISPLAY ON", &Font_7x10, 1);
 		}else{
 			SSD1306_Puts("DISPLAY OFF", &Font_7x10, 1);
@@ -315,11 +358,19 @@ void display_menu_conf(uint8_t selected, bool use_display, bool use_matrix){
 	if( selected == 3){
 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-		SSD1306_Puts("CHANGE FREQ", &Font_7x10, 0);
+		if( check_show_max_freq(foo.section.configuration) ){
+			SSD1306_Puts("MAX-FREQ ON", &Font_7x10, 0);
+		}else{
+			SSD1306_Puts("MAX-FREQ OFF", &Font_7x10, 0);
+		}
 	}else{
 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-		SSD1306_Puts("CHANGE FREQ", &Font_7x10, 1);
+		if ( check_show_max_freq(foo.section.configuration) ){
+			SSD1306_Puts("MAX-FREQ ON", &Font_7x10, 1);
+		}else{
+			SSD1306_Puts("MAX-FREQ OFF", &Font_7x10, 1);
+		}
 	}
 	SSD1306_UpdateScreen();
 }
@@ -363,79 +414,4 @@ static void MX_TIM4_Init(void){
   {
     Error_Handler();
   }
-}
-// 
-void trace_toggle(int tag){
-	switch(tag){
-		case(IDLE_TASK_TAG):
-			HAL_GPIO_TogglePin(trace_1_GPIO_Port, trace_1_Pin);
-			break;
-		case(DISPLAY_TASK_TAG):
-            HAL_GPIO_TogglePin(trace_5_GPIO_Port, trace_5_Pin);
-			break;
-		case(PROCESS_TASK_TAG):
-			HAL_GPIO_TogglePin(trace_3_GPIO_Port, trace_3_Pin);
-			break;
-		case(LEDMATRIX_TASK_TAG):
-			HAL_GPIO_TogglePin(trace_4_GPIO_Port, trace_4_Pin);
-			break;
-        case(AUXILIAR_TAG_1):
-			HAL_GPIO_TogglePin(trace_2_GPIO_Port, trace_2_Pin);
-            break;
-        case(AUXILIAR_TAG_2):
-            // HAL_GPIO_TogglePin(trace_5_GPIO_Port, trace_5_Pin);
-            break;
-		default: 
-			break;
-	}
-}
-
-void trace_on(int tag){
-	switch(tag){
-		case(IDLE_TASK_TAG):
-			HAL_GPIO_WritePin(trace_1_GPIO_Port, trace_1_Pin, GPIO_PIN_SET);
-			break;
-		case(DISPLAY_TASK_TAG):
-            HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_SET);
-			break;
-		case(PROCESS_TASK_TAG):
-			HAL_GPIO_WritePin(trace_3_GPIO_Port, trace_3_Pin, GPIO_PIN_SET);
-			break;
-		case(LEDMATRIX_TASK_TAG):
-			HAL_GPIO_WritePin(trace_4_GPIO_Port, trace_4_Pin, GPIO_PIN_SET);
-			break;
-        case(AUXILIAR_TAG_1):
-			HAL_GPIO_WritePin(trace_2_GPIO_Port, trace_2_Pin, GPIO_PIN_SET);
-            break;
-        case(AUXILIAR_TAG_2):
-            // HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_SET);
-            break;
-		default: 
-			break;
-	}
-}
-
-void trace_off(int tag){
-	switch(tag){
-		case(IDLE_TASK_TAG):
-			HAL_GPIO_WritePin(trace_1_GPIO_Port, trace_1_Pin, GPIO_PIN_RESET);
-			break;
-		case(DISPLAY_TASK_TAG):
-            HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_RESET);
-			break;
-		case(PROCESS_TASK_TAG):
-			HAL_GPIO_WritePin(trace_3_GPIO_Port, trace_3_Pin, GPIO_PIN_RESET);
-			break;
-		case(LEDMATRIX_TASK_TAG):
-			HAL_GPIO_WritePin(trace_4_GPIO_Port, trace_4_Pin, GPIO_PIN_RESET);
-			break;
-        case(AUXILIAR_TAG_1):
-			HAL_GPIO_WritePin(trace_2_GPIO_Port, trace_2_Pin, GPIO_PIN_RESET);
-            break;
-        case(AUXILIAR_TAG_2):
-            // HAL_GPIO_WritePin(trace_5_GPIO_Port, trace_5_Pin, GPIO_PIN_RESET);
-            break;
-		default: 
-			break;
-	}
 }

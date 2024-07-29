@@ -2,7 +2,7 @@
  * twid256.h
  */
 
-struct
+const struct
  {
  double real;
  double imag;

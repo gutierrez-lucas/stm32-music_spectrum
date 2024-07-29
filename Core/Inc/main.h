@@ -21,6 +21,8 @@ void trace_toggle(int tag);
 #define trace_4_GPIO_Port GPIOA
 #define trace_5_Pin GPIO_PIN_11
 #define trace_5_GPIO_Port GPIOA
+#define trace_6_Pin GPIO_PIN_12
+#define trace_6_GPIO_Port GPIOB
 
 #define display_rst_pin GPIO_PIN_5
 #define display_rst_pin_GPIO_Port GPIOB
@@ -31,10 +33,11 @@ void trace_toggle(int tag);
 #define IDLE_TASK_TAG	    0
 #define DISPLAY_TASK_TAG    1
 #define PROCESS_TASK_TAG	2
-#define LEDMATRIX_TASK_TAG	6 
-#define MENU_TASK_TAG       7
-#define AUXILIAR_TAG_1	    3
-#define AUXILIAR_TAG_2	    4
+#define LEDMATRIX_TASK_TAG	3
+#define MENU_TASK_TAG       4 
+#define MAIN_TASK_TAG       5 
+#define AUXILIAR_TAG_1	    7
+#define AUXILIAR_TAG_2	    8
 
 typedef union notification_union{
     uint32_t stream;

@@ -23,17 +23,38 @@ static void MX_TIM3_Init(void);
 extern QueueHandle_t led_matrix_queue;
 extern QueueHandle_t display_queue;
 
+#define PERIOD_20KHZ 256
+#define PERIOD_10KHZ 512
+#define PERIOD_5KHZ 1018
+
 TIM_HandleTypeDef htim3;
 DMA_HandleTypeDef hdma_adc1;
 ADC_HandleTypeDef hadc1;
 uint16_t adc_buffer[BUFFER_SIZE];
 bool adc_conversion_done = false;
-// 10k
-// #define FFT_MAX_FREQ_PRELOAD 600 // 10kHz
-// #define FFT_BAND_RESOLUTION 78.12 // 128 bands, 10kHz each
-// 20k
-#define FFT_BAND_RESOLUTION 156.25 // 128 bands, 20kHz each
-#define FFT_MAX_FREQ_PRELOAD 300 // 20kHz
+
+float band_resolution = 156.25;
+
+void change_max_freq(uint8_t freq){
+	uint16_t preload = 0;
+
+	switch(freq){
+		case USE_20K:
+			preload = PERIOD_20KHZ;
+			band_resolution = 156.25;
+			break;
+		case USE_10K:
+			preload = PERIOD_10KHZ;
+			band_resolution = 78.12;
+			break;
+		case USE_5K:
+			preload = PERIOD_5KHZ;
+			band_resolution = 39.06;
+			break;
+		default: printf("Invalid frequency\r\n"); return;
+	}
+	__HAL_TIM_SET_AUTORELOAD(&htim3, preload);
+}
 
 struct cmpx complex_samples[BUFFER_SIZE];
 
@@ -45,7 +66,7 @@ bool data_process_init(){
 	MX_TIM3_Init();
 	MX_ADC1_Init();
 
-	xTaskCreate(process_task, "process_task", 128, NULL, tskIDLE_PRIORITY+1, &process_task_handle) != pdPASS ? printf("PROCESS: TASK ERR\r\n") : printf("PROCESS: TASK OK\r\n");
+	xTaskCreate(process_task, "process_task", 250, NULL, tskIDLE_PRIORITY+1, &process_task_handle) != pdPASS ? printf("PROCESS: TASK ERR\r\n") : printf("PROCESS: TASK OK\r\n");
 	vTaskSetApplicationTaskTag( process_task_handle, ( void * ) PROCESS_TASK_TAG );
     return true;
 }
@@ -61,24 +82,25 @@ void process_task(void *pvParameters){
 	uint16_t display_value;
 	notification_union notify;
 
-	uint32_t auxiliar, aux1;
+	uint32_t amplitude, auxiliar;
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
 
 	notification_union menu_notification;
+	load_default_configuration(&menu_notification.section.configuration);
 
 	xTaskNotifyGive(main_task_handle);
 
 	while(1){
 		if( adc_conversion_done == true ){
 			adc_conversion_done = false;
-			for(int i = 0; i < BUFFER_SIZE; i++){
-				complex_samples[i].real = (float)adc_buffer[i];
-				complex_samples[i].imag = 0;
+			for(uint16_t n = 0; n < BUFFER_SIZE; n++){
+				complex_samples[n].real = (float)adc_buffer[n];
+				complex_samples[n].imag = 0;
 			}
-			if(check_plot_mode_time(menu_notification.section.configuration)){
-				for(int i = 0; i < BUFFER_SIZE; i+=2){
-					display_value = adc_to_point[(uint16_t)complex_samples[i].real/100];
+			if(check_plot_mode_time(menu_notification.section.configuration) == true){
+				for(uint16_t i = 0; i < BUFFER_SIZE; i+=2){
+					display_value = adc_to_point[(uint16_t)complex_samples[i].real/10];
 					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 				}
 			}
@@ -87,28 +109,28 @@ void process_task(void *pvParameters){
 			max_index = 0;
 			max_amplitude = 0;
 
-			uint8_t aux_counter = 0, aux2_counter=0;
+			uint8_t aux_counter = 0, samples_to_ledmatrix=0;
 			uint32_t led_matrix_acum = 0;
-			for(int i = 1; i <= BUFFER_SIZE/2; i++){
+			for(uint16_t k = 1; k <= BUFFER_SIZE/2; k++){
 // #define CONFIG_USE_MATH_ABS
 #ifdef CONFIG_USE_MATH_ABS
-				auxiliar = (uint16_t)sqrt((uint16_t)complex_samples[i].real*(uint16_t)complex_samples[i].real + (uint16_t)complex_samples[i].imag*(uint16_t)(uint16_t)complex_samples[i].imag);
+				amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
 #else
-				auxiliar = (uint32_t)(complex_samples[i].real)<<1;
-				aux1 = (uint32_t)(complex_samples[i].imag)<<1;
-				auxiliar = (auxiliar+aux1)>>1;
+				amplitude = (uint32_t)(complex_samples[k].real)<<1;
+				auxiliar = (uint32_t)(complex_samples[k].imag)<<1;
+				amplitude = (amplitude+auxiliar)>>1;
 #endif
-				if(auxiliar > max_amplitude){
-					max_amplitude = auxiliar;
-					max_index = i;
+				if(amplitude > max_amplitude){
+					max_amplitude = amplitude;
+					max_index = k;
 				}
 				if(check_plot_mode_freq(menu_notification.section.configuration)){
-					display_value = adc_to_point[auxiliar/100];
+					display_value = adc_to_point[amplitude/10];
 					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 				}
 
-				if(aux2_counter < 8){
-					led_matrix_acum += auxiliar;
+				if(samples_to_ledmatrix < 8){
+					led_matrix_acum += amplitude;
 					aux_counter++;
 					if(aux_counter == 4){
 						led_matrix_acum /= 400;
@@ -120,16 +142,15 @@ void process_task(void *pvParameters){
 						xQueueSend(led_matrix_queue, (uint8_t*)&led_matrix_acum, 0);
 						led_matrix_acum = 0;
 						aux_counter = 0;
-						aux2_counter++;
+						samples_to_ledmatrix++;
 					}
 				}
 			}
-			menu_notification.section.payload = max_index*FFT_BAND_RESOLUTION;
+			menu_notification.section.payload = max_index*band_resolution;
 			xTaskNotify(display_task_handle, menu_notification.stream, eSetValueWithOverwrite);
 		}
 		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
 	}
-	printf("Destroying print task \r\n");
 	vTaskDelete(process_task_handle);
 }
 
@@ -143,7 +164,9 @@ void print_lut(void){
 	printf("-----\r\n");
 }
 
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1){
+	trace_toggle(AUXILIAR_TAG_1);
 	adc_conversion_done = true;
 }
 
@@ -183,9 +206,10 @@ static void MX_TIM3_Init(void){
 	htim3.Instance = TIM3;
 	htim3.Init.Prescaler = 6;
 	htim3.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-	htim3.Init.Period = FFT_MAX_FREQ_PRELOAD;
+	htim3.Init.Period = PERIOD_20KHZ; // 20khz
 	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+
 	if (HAL_TIM_Base_Init(&htim3) != HAL_OK){
 		Error_Handler();
 	}

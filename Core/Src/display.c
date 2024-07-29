@@ -48,16 +48,22 @@ void display_task(void *pvParameters){
 
 	while(1){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
+
 		if(check_use_display(notify.section.configuration)){
 			SSD1306_Clear();
 			for(uint8_t i = 0; i < 128; i++){
 				xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
-				SSD1306_DrawLine(i, 64, i, 64-display_buffer, 1);
+				if(check_plot_mode_time(notify.section.configuration) == true){
+					SSD1306_DrawPixel(i, 64-display_buffer, 1);
+				}else{
+					SSD1306_DrawLine(i, 64, i, 64-display_buffer, 1);
+				}
 			}
-
-			SSD1306_GotoXY(80,10);
-			sprintf(str_buff, "%4d", notify.section.payload);
-			SSD1306_Puts(str_buff, &Font_7x10, 1);
+			if(check_show_max_freq(notify.section.configuration)){
+				SSD1306_GotoXY(80,10);
+				sprintf(str_buff, "%4d", notify.section.payload);
+				SSD1306_Puts(str_buff, &Font_7x10, 1);
+			}
 		}else{
 			SSD1306_GotoXY(0,24);
 			sprintf(str_buff, "NO DISP");
@@ -66,13 +72,10 @@ void display_task(void *pvParameters){
 		SSD1306_UpdateScreen();
 		xTaskNotify(ledmatrix_task_handle, notify.stream, eSetValueWithOverwrite);
 	}
-	printf("DISPLAY: TASK END\r\n");
 	vTaskDelete(display_task_handle);
 }
 
 bool display_init(){
-	printf("SSD1306: INIT\r\n");
-
 	uint8_t retry = 1;
 	if(retry < 3){
 		display_rst();
@@ -86,7 +89,6 @@ bool display_init(){
 }
 
 void display_rst(void){
-	printf("SSD1306: RST\r\n");
 	HAL_GPIO_WritePin(GPIOB, display_rst_pin, GPIO_PIN_RESET);
 	vTaskDelay(pdMS_TO_TICKS(100));
 	HAL_GPIO_WritePin(GPIOB, display_rst_pin, GPIO_PIN_SET);
@@ -99,7 +101,6 @@ bool display_connect(){
 		printf("SSD1306: CONN ERR: %d\r\n", res);
 		return false;
 	}else{
-		printf("SSD1306: CONN OK\r\n");
 		SSD1306_Clear();
 		SSD1306_Putc("Spectrum Analyzer", &Font_7x10, 1);
 		SSD1306_UpdateScreen();

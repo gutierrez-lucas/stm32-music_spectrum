@@ -5,17 +5,17 @@
 
 uint8_t rgbw_arr[NUM_OF_LEDS * BYTES_PER_LED * 8 + 1];//every pixel colour info is 24 bytes long
 
-char test_matrix[9][8] = {
-	{0, 1, 1, 0, 0, 1, 0, 1},
-	{0, 1, 2, 3, 3, 2, 1, 2},
-	{1, 2, 3, 4, 4, 2, 2, 2},
-	{2, 4, 6, 5, 7, 6, 6, 3},
-	{1, 3, 4, 4, 6, 5, 5, 3},
-	{0, 1, 2, 3, 4, 4, 2, 1},
-	{0, 0, 1, 1, 1, 2, 1, 0},
-	{0, 0, 0, 1, 1, 1, 0, 0},
-	{0, 0, 0, 1, 0, 0, 0, 0}
-};
+//char test_matrix[9][8] = {
+//	{0, 1, 1, 0, 0, 1, 0, 1},
+//	{0, 1, 2, 3, 3, 2, 1, 2},
+//	{1, 2, 3, 4, 4, 2, 2, 2},
+//	{2, 4, 6, 5, 7, 6, 6, 3},
+//	{1, 3, 4, 4, 6, 5, 5, 3},
+//	{0, 1, 2, 3, 4, 4, 2, 1},
+//	{0, 0, 1, 1, 1, 2, 1, 0},
+//	{0, 0, 0, 1, 1, 1, 0, 0},
+//	{0, 0, 0, 1, 0, 0, 0, 0}
+//};
 
 void rgb_matrix_clear_buffer(uint8_t *buffer, uint16_t bytenumber) {
 	for (uint32_t i = 0; i < bytenumber-1; ++i) {
@@ -157,20 +157,20 @@ void matrix_test_pyramid(rotation_t rotation){
 	}
 }
 
-void matrix_test_vertical_levels(rotation_t rotation, show_mode_t mode){
-	static uint8_t table = 0;
-	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
-	for(uint8_t i=1; i<=MATRIX_SIZE; i++){
-		if(mode == POINTS){
-			rgb_matrix_set_pixel(&rgbw_arr, LIMITS, i, test_matrix[table][i-1]+1, rotation);
-		}else if(mode == LINES){
-			for(uint8_t j=1; j<=test_matrix[table][i-1]; j++){
-				rgb_matrix_set_pixel(&rgbw_arr, LIMITS, i, j, rotation);
-			}
-		}
-	}
-	table++;
-	if(table == 9){
-		table = 0;
-	}
-}
+//void matrix_test_vertical_levels(rotation_t rotation, show_mode_t mode){
+//	static uint8_t table = 0;
+//	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
+//	for(uint8_t i=1; i<=MATRIX_SIZE; i++){
+//		if(mode == POINTS){
+//			rgb_matrix_set_pixel(&rgbw_arr, LIMITS, i, test_matrix[table][i-1]+1, rotation);
+//		}else if(mode == LINES){
+//			for(uint8_t j=1; j<=test_matrix[table][i-1]; j++){
+//				rgb_matrix_set_pixel(&rgbw_arr, LIMITS, i, j, rotation);
+//			}
+//		}
+//	}
+//	table++;
+//	if(table == 9){
+//		table = 0;
+//	}
+//}
