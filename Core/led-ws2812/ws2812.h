@@ -21,7 +21,9 @@ typedef enum rotation_t {
 typedef enum rgb_mode_t {
 	COLOR_OFF = 0,
 	COLOR_FULL = 1,
-	COLOR_LIMITS = 2 
+	COLOR_LIMITS = 2 ,
+	COLOR_RED = 3,
+	COLOR_GREEN = 4
 } rgb_mode_t;
 
 typedef enum show_mode_t{

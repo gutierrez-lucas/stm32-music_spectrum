@@ -145,14 +145,12 @@ void process_task(void *pvParameters){
 					aux_counter++;
 					if(aux_counter == 3){
 						led_matrix_acum /= 3;
-						printf("%d\r\n", led_matrix_acum);
 						led_matrix_acum /= 10;
 						if(led_matrix_acum > 408){
 							matrix_value = 8;
 						}else{
 							matrix_value = adc_to_matrix_point[led_matrix_acum];
 						}
-						// printf("-%d\r\n", matrix_value);
 						xQueueSend(led_matrix_queue, (uint8_t*)&matrix_value, 0);
 						led_matrix_acum = 0;
 						aux_counter = 0;
