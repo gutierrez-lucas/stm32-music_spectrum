@@ -62,7 +62,7 @@ void ledmatrix_task(void *pvParameters){
 	while(1){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
 		if(check_use_matrix(notify.section.configuration)){
-			if(lock++ == 5){
+			if(lock++ == 1){
 				rgb_matrix_clear_buffer(rgbw_arr, sizeof(rgbw_arr));
 				lock = 0;
 			}
@@ -70,7 +70,7 @@ void ledmatrix_task(void *pvParameters){
 				xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
 				matrix_draw_vertical_line(i, 1, matrix_value, ROTATION_270);
 				while( rgb_ready != true ){ vTaskDelay(pdMS_TO_TICKS(1)); }
-				// vTaskDelay(pdMS_TO_TICKS(1));
+				vTaskDelay(pdMS_TO_TICKS(1));
 				rgb_ready = false;
 				HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, rgbw_arr, sizeof(rgbw_arr));
 			}

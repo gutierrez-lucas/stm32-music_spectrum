@@ -111,45 +111,40 @@ void process_task(void *pvParameters){
 			}
 			FFT(&complex_samples, BUFFER_SIZE);
 
-			if(check_plot_mode_power(menu_notification.section.configuration)){
-				for(uint16_t k = 1; k < BUFFER_SIZE; k++){
+			max_index = 0;
+			max_amplitude = 0;
+
+			uint8_t average_led_samples = 0, samples_to_ledmatrix=0;
+			uint32_t average_led_acum = 0;
+
+			for(uint16_t k = 1; k < BUFFER_SIZE; k++){
 // #define CONFIG_USE_MATH_ABS
 #ifdef CONFIG_USE_MATH_ABS
-				amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
+			amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
 #else
-					amplitude = (uint32_t)(complex_samples[k].real)<<1;
-					auxiliar = (uint32_t)(complex_samples[k].imag)<<1;
-					amplitude = (amplitude+auxiliar)>>1;
+				amplitude = (uint32_t)(complex_samples[k].real)<<1;
+				auxiliar = (uint32_t)(complex_samples[k].imag)<<1;
+				amplitude = (amplitude+auxiliar)>>1;
 #endif
+				if(check_plot_mode_power(menu_notification.section.configuration)){
 					power += abs(amplitude)<<1;
 					if(k == BUFFER_SIZE - 1){
 						power = power/BUFFER_SIZE;
-						printf("Power: %d\r\n", (uint32_t)power);
+						if( power > 999 ){
+							menu_notification.section.payload = 64;
+						}else{
+							menu_notification.section.payload = linear_to_linear_display_y[power];
+						}
+						power = 0;
+						break;
+					}
+				}else{
+					if( k >= BUFFER_SIZE/2){
+						break;
 					}
 				}
-				if( power > 999 ){
-					menu_notification.section.payload = 64;
-				}else{
-					menu_notification.section.payload = linear_to_linear_display_y[power];
-				}
-				xTaskNotify(display_task_handle, menu_notification.stream, eSetValueWithOverwrite);
-				power = 0;
-			}else{
-				max_index = 0;
-				max_amplitude = 0;
-
-				uint8_t average_led_samples = 0, samples_to_ledmatrix=0;
-				uint32_t average_led_acum = 0;
-
-				for(uint16_t k = 1; k <= BUFFER_SIZE/2; k++){
-	// #define CONFIG_USE_MATH_ABS
-#ifdef CONFIG_USE_MATH_ABS
-					amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
-#else
-					amplitude = (uint32_t)(complex_samples[k].real)<<1;
-					auxiliar = (uint32_t)(complex_samples[k].imag)<<1;
-					amplitude = (amplitude+auxiliar)>>1;
-#endif
+/// frequency
+				if( k < BUFFER_SIZE/2 ){
 					if(amplitude > max_amplitude){
 						max_amplitude = amplitude;
 						max_index = k;
@@ -181,9 +176,11 @@ void process_task(void *pvParameters){
 						}
 					}
 				}
-			menu_notification.section.payload = max_index*band_resolution;
-			xTaskNotify(display_task_handle, menu_notification.stream, eSetValueWithOverwrite);
 			}
+			if(check_show_max_freq(menu_notification.section.configuration)){
+				menu_notification.section.payload = max_index*band_resolution;
+			}
+			xTaskNotify(display_task_handle, menu_notification.stream, eSetValueWithOverwrite);
 		}
 		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
 	}
