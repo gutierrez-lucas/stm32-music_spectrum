@@ -5,18 +5,6 @@
 
 uint8_t rgbw_arr[NUM_OF_LEDS * BYTES_PER_LED * 8 + 1];//every pixel colour info is 24 bytes long
 
-//char test_matrix[9][8] = {
-//	{0, 1, 1, 0, 0, 1, 0, 1},
-//	{0, 1, 2, 3, 3, 2, 1, 2},
-//	{1, 2, 3, 4, 4, 2, 2, 2},
-//	{2, 4, 6, 5, 7, 6, 6, 3},
-//	{1, 3, 4, 4, 6, 5, 5, 3},
-//	{0, 1, 2, 3, 4, 4, 2, 1},
-//	{0, 0, 1, 1, 1, 2, 1, 0},
-//	{0, 0, 0, 1, 1, 1, 0, 0},
-//	{0, 0, 0, 1, 0, 0, 0, 0}
-//};
-
 void rgb_matrix_clear_buffer(uint8_t *buffer, uint16_t bytenumber) {
 	for (uint32_t i = 0; i < bytenumber-1; ++i) {
 		buffer[i] = LOW_BIT;
@@ -34,7 +22,7 @@ void rgb_process_colors(rgb_mode_t mode, uint8_t* colors, uint8_t amplitude){
 				case 1: colors[0] = 10; colors[1] = 200; colors[2] = 100; break;
 				case 2: colors[0] = 10; colors[1] = 75; colors[2] = 80; break;
 				case 3: colors[0] = 10; colors[1] = 0; colors[2] = 80; break;
-				case 4: colors[0] = 300; colors[1] = 0; colors[2] = 80; break;
+				case 4: colors[0] = 200; colors[1] = 0; colors[2] = 80; break;
 				case 5: colors[0] = 80; colors[1] = 0; colors[2] = 80; break;
 				case 6: colors[0] = 80; colors[1] = 60; colors[2] = 10; break;
 				case 7: colors[0] = 0; colors[1] = 0; colors[2] = 10; break;
@@ -43,6 +31,10 @@ void rgb_process_colors(rgb_mode_t mode, uint8_t* colors, uint8_t amplitude){
 			break;
 		default: colors[0] = 0;colors[1] = 0;colors[2] = 0; break;
 	}
+}
+
+void rgb_process_mirror(uint8_t* coordinates){
+	coordinates[0] = MATRIX_SIZE - coordinates[0] + 1;
 }
 
 void rgb_process_rotation(rotation_t rotation, uint8_t* coordinates, uint8_t x, uint8_t y){
@@ -77,6 +69,7 @@ uint32_t rgb_matrix_set_pixel(uint8_t *buffer, rgb_mode_t mode, uint8_t x, uint8
 
 	rgb_process_colors(mode, colors, y);
 	rgb_process_rotation(rotation, coordinates, x, y);
+	rgb_process_mirror(coordinates);
 
 	uint8_t led_index = (coordinates[1]-1)*MATRIX_SIZE + coordinates[0] -1;
 
@@ -137,10 +130,12 @@ void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rot
 }
 
 void matrix_test_pyramid(rotation_t rotation){
-	static uint8_t iteration_x = 1, iteration_y = 1;
-	static uint8_t rotation_diff = 0;
+	static uint8_t rotation_change = 0;
+	static uint8_t iteration_x = 1;
+	static uint8_t iteration_y = 1;
 
-	matrix_draw_vertical_line(iteration_x, 1, iteration_y, rotation+rotation_diff);
+	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
+	matrix_draw_vertical_line(iteration_x, 1, iteration_y, rotation+rotation_change);
 	if(iteration_x >= 5){
 		iteration_y--;
 	}else{
@@ -148,12 +143,12 @@ void matrix_test_pyramid(rotation_t rotation){
 	}
 	iteration_x++;
 	if(iteration_x == 9){
+		rotation_change++;
+		if(rotation_change == 4){
+			rotation_change = 0;
+		}
 		iteration_x = 1;
 		iteration_y = 1;
-		rotation_diff ++;
-		if(rotation_diff == 4){
-			rotation_diff = 0;
-		}
 	}
 }
 

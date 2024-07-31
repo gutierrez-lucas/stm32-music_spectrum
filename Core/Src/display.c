@@ -10,6 +10,8 @@
 #include "serial.h"
 #include "menu.h"
 
+extern uint8_t linear_to_log_x[128];
+
 void display_task(void *pvParameters);
 static void MX_I2C1_Init(void);
 bool display_connect();
@@ -54,9 +56,9 @@ void display_task(void *pvParameters){
 			for(uint8_t i = 0; i < 128; i++){
 				xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
 				if(check_plot_mode_time(notify.section.configuration) == true){
-					SSD1306_DrawPixel(i, 64-display_buffer, 1);
+					SSD1306_DrawPixel(linear_to_log_x[i], 64-display_buffer, 1);
 				}else{
-					SSD1306_DrawLine(i, 64, i, 64-display_buffer, 1);
+					SSD1306_DrawLine(linear_to_log_x[i], 64, linear_to_log_x[i], 64-display_buffer, 1);
 				}
 			}
 			if(check_show_max_freq(notify.section.configuration)){

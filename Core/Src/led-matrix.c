@@ -32,7 +32,7 @@ bool ledmatrix_init(){
 
 	led_matrix_DMA();
 	MX_TIM2_Init();
-	xTaskCreate(ledmatrix_task, "led_task", 200, NULL, tskIDLE_PRIORITY+1, &ledmatrix_task_handle) != pdPASS ? printf("LED-M: TASK ERR\r\n") : printf("LED-M: TASK OK\r\n");
+	xTaskCreate(ledmatrix_task, "led_task", 250, NULL, tskIDLE_PRIORITY+1, &ledmatrix_task_handle) != pdPASS ? printf("LED-M: TASK ERR\r\n") : printf("LED-M: TASK OK\r\n");
 	vTaskSetApplicationTaskTag( ledmatrix_task_handle, ( void * ) LEDMATRIX_TASK_TAG );
 
 	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
@@ -52,21 +52,22 @@ void ledmatrix_task(void *pvParameters){
 
 	uint8_t matrix_value;
 
+	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
+	HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
 	// ledmatrix_init();
 	xTaskNotifyGive(main_task_handle);
 
 	while(1){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
 		if(check_use_matrix(notify.section.configuration)){
-			if(lock++ == 3){
+			if(lock++ == 10){
 				lock = 0;
-				rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
 			}
-			// matrix_test_pyramid(ROTATION_0);
-			for(uint8_t i = 1; i <= 8; i++){
-				xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
-				matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
-			}
+			matrix_test_pyramid(ROTATION_0);
+			// for(uint8_t i = 0; i < 8; i++){
+			// 	xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
+			// 	matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
+			// }
 			HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
 		}
 		xTaskNotifyGive(menu_task_handle);

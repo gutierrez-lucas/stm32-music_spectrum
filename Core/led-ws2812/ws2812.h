@@ -11,7 +11,6 @@
 #define HIGH_BIT 58 //if our pwm period is 90, 64%(90)=57.6 close to 58
 #define LOW_BIT 29  //if our pwm period is 90, 32%(90)=28.8 close to 29
 
-
 typedef enum rotation_t {
 	ROTATION_0 = 0,
 	ROTATION_90 = 1,

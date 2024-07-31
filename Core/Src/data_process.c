@@ -10,7 +10,14 @@
 #include "serial.h"
 #include "fft.h"
 
+extern uint8_t adc_to_matrix_point[409];
+extern uint8_t linear_to_linear_display_y[1000];
+extern uint8_t adc_to_point[409];
+
 void process_task(void *pvParameters);
+
+void print_lut_display_fft(void);
+void print_lut_display_adc(void);
 
 xTaskHandle process_task_handle = NULL;
 extern xTaskHandle main_task_handle;
@@ -58,8 +65,6 @@ void change_max_freq(uint8_t freq){
 
 struct cmpx complex_samples[BUFFER_SIZE];
 
-const uint8_t adc_to_point[409] = {1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,5,5,5,6,6,6,6,6,6,7,7,7,7,7,7,7,8,8,8,8,8,8,9,9,9,9,9,9,10,10,10,10,10,10,10,11,11,11,11,11,11,12,12,12,12,12,12,12,13,13,13,13,13,13,14,14,14,14,14,14,15,15,15,15,15,15,15,16,16,16,16,16,16,17,17,17,17,17,17,17,18,18,18,18,18,18,19,19,19,19,19,19,20,20,20,20,20,20,20,21,21,21,21,21,21,22,22,22,22,22,22,23,23,23,23,23,23,23,24,24,24,24,24,24,25,25,25,25,25,25,25,26,26,26,26,26,26,27,27,27,27,27,27,28,28,28,28,28,28,28,29,29,29,29,29,29,30,30,30,30,30,30,30,31,31,31,31,31,31,32,32,32,32,32,32,33,33,33,33,33,33,33,34,34,34,34,34,34,35,35,35,35,35,35,35,36,36,36,36,36,36,37,37,37,37,37,37,38,38,38,38,38,38,38,39,39,39,39,39,39,40,40,40,40,40,40,40,41,41,41,41,41,41,42,42,42,42,42,42,43,43,43,43,43,43,43,44,44,44,44,44,44,45,45,45,45,45,45,46,46,46,46,46,46,46,47,47,47,47,47,47,48,48,48,48,48,48,48,49,49,49,49,49,49,50,50,50,50,50,50,51,51,51,51,51,51,51,52,52,52,52,52,52,53,53,53,53,53,53,53,54,54,54,54,54,54,55,55,55,55,55,55,56,56,56,56,56,56,56,57,57,57,57,57,57,58,58,58,58,58,58,58,59,59,59,59,59,59,60,60,60,60,60,60,61,61,61,61,61,61,61,62,62,62,62,62,62,63,63,63,63,63,63};
-const uint8_t adc_to_matrix_point[409] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7};
 
 bool data_process_init(){
     data_process_DMA();
@@ -85,6 +90,7 @@ void process_task(void *pvParameters){
 	uint32_t amplitude, auxiliar;
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
+	uint8_t matrix_value = 0;
 
 	notification_union menu_notification;
 	load_default_configuration(&menu_notification.section.configuration);
@@ -125,21 +131,28 @@ void process_task(void *pvParameters){
 					max_index = k;
 				}
 				if(check_plot_mode_freq(menu_notification.section.configuration)){
-					display_value = adc_to_point[amplitude/10];
+					if(amplitude > 30000){
+						display_value = 63;
+					}else{
+						display_value = linear_to_linear_display_y[amplitude/30];
+					}
+					// printf("%d %d \r\n", amplitude, display_value);
 					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 				}
 
-				if(samples_to_ledmatrix < 8){
+				if(samples_to_ledmatrix < 8 && k>1){
 					led_matrix_acum += amplitude;
 					aux_counter++;
-					if(aux_counter == 4){
-						led_matrix_acum /= 400;
+					if(aux_counter == 20){
+						led_matrix_acum /= 200;
+						// printf("%d", led_matrix_acum);
 						if(led_matrix_acum > 408){
-							led_matrix_acum = 8;
+							matrix_value = 8;
 						}else{
-							led_matrix_acum = adc_to_matrix_point[led_matrix_acum];
+							matrix_value = adc_to_matrix_point[led_matrix_acum];
 						}
-						xQueueSend(led_matrix_queue, (uint8_t*)&led_matrix_acum, 0);
+						// printf("-%d\r\n", matrix_value);
+						xQueueSend(led_matrix_queue, (uint8_t*)&matrix_value, 0);
 						led_matrix_acum = 0;
 						aux_counter = 0;
 						samples_to_ledmatrix++;
@@ -154,7 +167,7 @@ void process_task(void *pvParameters){
 	vTaskDelete(process_task_handle);
 }
 
-void print_lut(void){
+void print_lut_display_adc(void){
 	printf("----\r\n");
 	double aux;
 	for(uint16_t i=0; i<409; i++){
@@ -164,6 +177,15 @@ void print_lut(void){
 	printf("-----\r\n");
 }
 
+void print_lut_display_fft(void){
+	printf("----\r\n");
+	double aux;
+	for(uint16_t i=0; i<655; i++){
+		aux = i*64/655;
+		printf("%d,", (uint8_t)aux);
+	}
+	printf("-----\r\n");
+}
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1){
 	trace_toggle(AUXILIAR_TAG_1);
