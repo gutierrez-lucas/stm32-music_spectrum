@@ -43,6 +43,7 @@ void display_task(void *pvParameters){
 	char str_buff[10];
 	bool res = false;
 	uint16_t display_buffer;
+	uint8_t index = 0;
 
 	notification_union notify;
 
@@ -55,10 +56,15 @@ void display_task(void *pvParameters){
 			SSD1306_Clear();
 			for(uint8_t i = 0; i < 128; i++){
 				xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
-				if(check_plot_mode_time(notify.section.configuration) == true){
-					SSD1306_DrawPixel(linear_to_log_x[i], 64-display_buffer, 1);
+				if(check_use_log_scale(notify.section.configuration) == true){
+					index = linear_to_log_x[i];
 				}else{
-					SSD1306_DrawLine(linear_to_log_x[i], 64, linear_to_log_x[i], 64-display_buffer, 1);
+					index = i;
+				}
+				if(check_plot_mode_time(notify.section.configuration) == true){
+					SSD1306_DrawPixel(index, 64-display_buffer, 1);
+				}else{
+					SSD1306_DrawLine(index, 64, index, 64-display_buffer, 1);
 				}
 			}
 			if(check_show_max_freq(notify.section.configuration)){

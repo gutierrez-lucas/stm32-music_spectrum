@@ -134,7 +134,6 @@ void process_task(void *pvParameters){
 					}else{
 						display_value = linear_to_linear_display_y[amplitude/30];
 					}
-					// printf("%d %d \r\n", amplitude, display_value);
 					xQueueSend(display_queue, (uint16_t*)&display_value, 0);
 				}
 

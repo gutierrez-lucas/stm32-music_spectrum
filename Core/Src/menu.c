@@ -39,13 +39,15 @@ typedef enum action_t{
 
 #define MENU_ELEMENTS_MAIN 3
 #define MENU_ELEMENTS_PLOT 3
-#define MENU_ELEMENTS_CONF 4
+#define MENU_ELEMENTS_CONF 5
 #define MENU_ELEMENTS_FREQ 3
+#define MENU_ELEMENTS_IND  3
 
 char *menu_elements[MENU_ELEMENTS_MAIN] = {'\0'};
 char *plot_elements[MENU_ELEMENTS_PLOT] = {'\0'};
 char *config_elements[MENU_ELEMENTS_CONF] = {'\0'};
 char *freq_elements[MENU_ELEMENTS_FREQ] = {'\0'};
+char *indicator_elements[MENU_ELEMENTS_FREQ] = {'\0'};
 
 int16_t get_encoder();
 void display_menu_plot(uint8_t selected);
@@ -56,15 +58,35 @@ int16_t new_encoder_position = 0, last_encoder_position = 0, difference_position
 bool using_menu;
 uint8_t menu_id = 0;
 
+// main menu
 #define MENU_SELECTION_MAIN 0
 #define MENU_SELECTION_PLOT 1
 #define MENU_SELECTION_CONF 2 
-#define MENU_SELECTION_FREQUENCY 3 
+#define MENU_SELECTION_INDICATOR 3 
+// conf menu
+#define MENU_SELECTION_CONF_MATRIX 1
+#define MENU_SELECTION_CONF_DISPLAY 2
+#define MENU_SELECTION_CONF_FREQUENCY 3 
+#define MENU_SELECTION_CONF_HIGHLIGHT_MAX 4
+#define MENU_SELECTION_CONF_USE_LOG_SCALE 5 
+// plot menu
+#define MENU_SELECTION_PLOT_FREQ 1
+#define MENU_SELECTION_PLOT_TEMP 2
+#define MENU_SELECTION_PLOT_POWER 3
+// frequency menu
+#define MENU_SELECTION_FREQ_20K 1
+#define MENU_SELECTION_FREQ_10K 2
+#define MENU_SELECTION_FREQ_5K 3
+// indicator menu
+#define MENU_SELECTION_INDICATOR_MAIN_FREQ 1
+#define MENU_SELECTION_INDICATOR_TOTAL_POW 2
+#define MENU_SELECTION_INDICATOR_NONE 3
 
 #define MENU_ID_MAIN 0
 #define MENU_ID_PLOT 10
 #define MENU_ID_CONF 20
 #define MENU_ID_FREQUENCY 30
+#define MENU_ID_INDICATOR 40
 
 #define FONT_HEIGHT 10
 #define FONT_WIDTH 7
@@ -78,23 +100,13 @@ uint8_t menu_id = 0;
 #define STRING_3_TOP (STARTING_TOP+4)
 #define STRING_3_LEFT (STARTING_LEFT+3)
 
+void load_menu_elements();
+
 bool menu_init(){
 
-	menu_elements[0] = "PLOT";
-	menu_elements[1] = "CONFIG";
-	menu_elements[2] = "MAX FREQ";
-	config_elements[0] = "MATRIX";
-	config_elements[1] = "DISPLAY";
-	config_elements[2] = "MAX FREQ";
-	config_elements[3] = "BACK";
-	freq_elements[0] = "20kHZ";
-	freq_elements[1] = "10kHZ";
-	freq_elements[2] = "5kHZ";
-	plot_elements[0] = "FREQUENCY";
-	plot_elements[1] = "TEMPORAL";
-	plot_elements[2] = "POWER";
 	MX_TIM4_Init();
     HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
+	load_menu_elements();
 
 	xTaskCreate(menu_task, "menu_task", 250, NULL, tskIDLE_PRIORITY+1, &menu_task_handle) != pdPASS ? printf("MENU: TASK ERR\r\n") : printf("MENU: TASK OK\r\n");
 	vTaskSetApplicationTaskTag( menu_task_handle, ( void * ) MENU_TASK_TAG );
@@ -116,7 +128,9 @@ void load_default_configuration(notification_union* foo){
 	set_plot_mode_freq(foo->section.configuration);
 	toggle_use_matrix(foo->section.configuration);
 	toggle_use_display(foo->section.configuration);
-	toggle_show_max_freq(foo->section.configuration);
+	set_show_none(foo->section.configuration);
+	toogle_highlight_max(foo->section.configuration);
+	toggle_use_log_scale(foo->section.configuration);
 }
 
 uint8_t get_amount_of_menu_elements(uint8_t menu_id){
@@ -125,6 +139,7 @@ uint8_t get_amount_of_menu_elements(uint8_t menu_id){
 		case MENU_ID_PLOT: return MENU_ELEMENTS_PLOT;
 		case MENU_ID_CONF: return MENU_ELEMENTS_CONF;
 		case MENU_ID_FREQUENCY: return MENU_ELEMENTS_FREQ;
+		case MENU_ID_INDICATOR: return MENU_ELEMENTS_IND;
 		default: return 0;
 	}
 }
@@ -172,15 +187,15 @@ void menu_task(void *pvParameters){
 						draw_menu_elements(current_selected_element, plot_elements);
 						menu_id = MENU_ID_PLOT;
 						break;
-					case MENU_ID_PLOT+1:
+					case MENU_ID_PLOT+MENU_SELECTION_PLOT_FREQ:
 						set_plot_mode_freq(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
-					case MENU_ID_PLOT+2:
+					case MENU_ID_PLOT+MENU_SELECTION_PLOT_TEMP:
 						set_plot_mode_time(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
-					case MENU_ID_PLOT+3:
+					case MENU_ID_PLOT+MENU_SELECTION_PLOT_POWER:
 						set_plot_mode_power(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
@@ -188,38 +203,55 @@ void menu_task(void *pvParameters){
 						draw_menu_elements(current_selected_element, config_elements);
 						menu_id = MENU_ID_CONF;
 						break;
-					case MENU_ID_CONF+1:
+					case MENU_ID_CONF+MENU_SELECTION_CONF_MATRIX:
 					    toggle_use_matrix(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
-					case MENU_ID_CONF+2:
+					case MENU_ID_CONF+MENU_SELECTION_CONF_DISPLAY:
 						toggle_use_display(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
-					case MENU_ID_CONF+3:
-						toggle_show_max_freq(menu_selection.section.configuration);
-						return_to_main_menu();
-						break;
-					case MENU_ID_CONF+4:
-						return_to_main_menu();
-						break;
-					case MENU_ID_MAIN+MENU_SELECTION_FREQUENCY:
+					case MENU_ID_CONF+MENU_SELECTION_CONF_FREQUENCY:
 						draw_menu_elements(current_selected_element, freq_elements);
 						menu_id = MENU_ID_FREQUENCY;
 						break;
-					case MENU_ID_FREQUENCY+1:
+					case MENU_ID_CONF+MENU_SELECTION_CONF_HIGHLIGHT_MAX:
+						toogle_highlight_max(menu_selection.section.configuration);
+						return_to_main_menu();
+						break;
+					case MENU_ID_CONF+MENU_SELECTION_CONF_USE_LOG_SCALE:
+						toggle_use_log_scale(menu_selection.section.configuration);
+						return_to_main_menu();
+						break;
+					case MENU_ID_FREQUENCY+MENU_SELECTION_FREQ_20K:
 						set_max_freq_20k(menu_selection.section.configuration);
 						change_max_freq(USE_20K);
 						return_to_main_menu();
 						break; 
-					case MENU_ID_FREQUENCY+2:
+					case MENU_ID_FREQUENCY+MENU_SELECTION_FREQ_10K:
 						set_max_freq_10k(menu_selection.section.configuration);
 						change_max_freq(USE_10K);
 						return_to_main_menu();
 						break;
-					case MENU_ID_FREQUENCY+3:
+					case MENU_ID_FREQUENCY+MENU_SELECTION_FREQ_5K:
 						set_max_freq_5k(menu_selection.section.configuration);
 						change_max_freq(USE_5K);
+						return_to_main_menu();
+						break;
+					case MENU_ID_MAIN+MENU_SELECTION_INDICATOR:
+						draw_menu_elements(current_selected_element, indicator_elements);
+						menu_id = MENU_ID_INDICATOR;
+						break;
+					case MENU_ID_INDICATOR+MENU_SELECTION_INDICATOR_MAIN_FREQ:
+						set_show_max_freq(menu_selection.section.configuration);
+						return_to_main_menu();
+						break;
+					case MENU_ID_INDICATOR+MENU_SELECTION_INDICATOR_TOTAL_POW:
+						set_show_max_power(menu_selection.section.configuration);
+						return_to_main_menu();
+						break;
+					case MENU_ID_INDICATOR+MENU_SELECTION_INDICATOR_NONE:
+						set_show_none(menu_selection.section.configuration);
 						return_to_main_menu();
 						break;
 					default:  printf("MENU: ERR unknown selection: %d\r\n", current_menu); break;
@@ -282,62 +314,6 @@ void draw_menu_elements(uint8_t selected, char** elements){
 	SSD1306_UpdateScreen();
 }
 
-// void display_menu_conf(uint8_t selected, notification_union foo){
-// 	SSD1306_Fill (0);
-// 	if( selected == 1){
-// 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
-// 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
-// 		if( check_use_matrix(foo.section.configuration) ){
-// 			SSD1306_Puts("MATRIX ON", &Font_7x10, 0);
-// 		}else{
-// 			SSD1306_Puts("MATRIX OFF", &Font_7x10, 0);
-// 		}
-// 	}else{
-// 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
-// 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP);
-// 		if( check_use_matrix(foo.section.configuration) ){
-// 			SSD1306_Puts("MATRIX ON", &Font_7x10, 1);
-// 		}else{
-// 			SSD1306_Puts("MATRIX OFF", &Font_7x10, 1);
-// 		}
-// 	}
-// 	if( selected == 2){
-// 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
-// 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
-// 		if( check_use_display(foo.section.configuration) ){
-// 			SSD1306_Puts("DISPLAY ON", &Font_7x10, 0);
-// 		}else{
-// 			SSD1306_Puts("DISPLAY OFF", &Font_7x10, 0);
-// 		}
-// 	}else{
-// 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
-// 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT);
-// 		if( check_use_display(foo.section.configuration) ){
-// 			SSD1306_Puts("DISPLAY ON", &Font_7x10, 1);
-// 		}else{
-// 			SSD1306_Puts("DISPLAY OFF", &Font_7x10, 1);
-// 		}
-// 	}
-// 	if( selected == 3){
-// 		SSD1306_DrawFilledRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
-// 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-// 		if( check_show_max_freq(foo.section.configuration) ){
-// 			SSD1306_Puts("MAX-FREQ ON", &Font_7x10, 0);
-// 		}else{
-// 			SSD1306_Puts("MAX-FREQ OFF", &Font_7x10, 0);
-// 		}
-// 	}else{
-// 		SSD1306_DrawRectangle(STARTING_LEFT,STARTING_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2, BOX_1_WIDTH, BOX_3_HEIGHT, 1);
-// 		SSD1306_GotoXY(STRING_3_LEFT,STRING_3_TOP+BOX_3_HEIGHT_DISTANCE_NEXT*2);
-// 		if ( check_show_max_freq(foo.section.configuration) ){
-// 			SSD1306_Puts("MAX-FREQ ON", &Font_7x10, 1);
-// 		}else{
-// 			SSD1306_Puts("MAX-FREQ OFF", &Font_7x10, 1);
-// 		}
-// 	}
-// 	SSD1306_UpdateScreen();
-// }
-
 int16_t get_encoder(){
 	uint16_t value = TIM4->CNT;
 	if(value > 32767){
@@ -377,4 +353,28 @@ static void MX_TIM4_Init(void){
   {
     Error_Handler();
   }
+}
+
+void load_menu_elements(){
+	menu_elements[0] = "PLOT";
+	menu_elements[1] = "CONFIG";
+	menu_elements[2] = "INDICATOR";
+
+	indicator_elements[0] = "MAIN FREQ";
+	indicator_elements[1] = "TOTAL POW";
+	indicator_elements[2] = "NONE";
+	
+	config_elements[0] = "MATRIX";
+	config_elements[1] = "DISPLAY";
+	config_elements[2] = "MAX FREQ";
+	config_elements[3] = "HIGHLIGHT MAX";
+	config_elements[4] = "USE LOG SCALE";
+
+	freq_elements[0] = "20kHZ";
+	freq_elements[1] = "10kHZ";
+	freq_elements[2] = "5kHZ";
+
+	plot_elements[0] = "FREQUENCY";
+	plot_elements[1] = "TEMPORAL";
+	plot_elements[2] = "POWER";
 }
