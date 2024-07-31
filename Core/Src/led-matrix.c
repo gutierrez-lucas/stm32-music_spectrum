@@ -41,6 +41,8 @@ bool ledmatrix_init(){
 	return true;
 }
 
+bool rgb_ready = false;
+
 void ledmatrix_task(void *pvParameters){
 
 	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -54,21 +56,24 @@ void ledmatrix_task(void *pvParameters){
 
 	rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
 	HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
-	// ledmatrix_init();
+
 	xTaskNotifyGive(main_task_handle);
 
 	while(1){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
 		if(check_use_matrix(notify.section.configuration)){
-			if(lock++ == 10){
+			if(lock++ == 5){
+				rgb_matrix_clear_buffer(&rgbw_arr, sizeof(rgbw_arr));
 				lock = 0;
 			}
-			matrix_test_pyramid(ROTATION_0);
-			// for(uint8_t i = 0; i < 8; i++){
-			// 	xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
-			// 	matrix_draw_vertical_line(i, 0, matrix_value, ROTATION_0);
-			// }
-			HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, &rgbw_arr, sizeof(rgbw_arr));
+			for(uint8_t i = 1; i <= 8; i++){ 
+				xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
+				matrix_draw_vertical_line(i, 1, matrix_value, ROTATION_270);
+				while( rgb_ready != true ){ vTaskDelay(pdMS_TO_TICKS(1)); }
+				// vTaskDelay(pdMS_TO_TICKS(10));
+				rgb_ready = false;
+				HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, rgbw_arr, sizeof(rgbw_arr));
+			}
 		}
 		xTaskNotifyGive(menu_task_handle);
 	}
@@ -79,6 +84,7 @@ void ledmatrix_task(void *pvParameters){
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
 	HAL_TIM_PWM_Stop_DMA(&htim2, TIM_CHANNEL_1);
 	htim2.Instance->CCR1 = 0;
+	rgb_ready = true;
 }
 
 static void MX_TIM2_Init(void){

@@ -143,9 +143,10 @@ void process_task(void *pvParameters){
 				if(samples_to_ledmatrix < 8 && k>1){
 					led_matrix_acum += amplitude;
 					aux_counter++;
-					if(aux_counter == 20){
-						led_matrix_acum /= 200;
-						// printf("%d", led_matrix_acum);
+					if(aux_counter == 3){
+						led_matrix_acum /= 3;
+						printf("%d\r\n", led_matrix_acum);
+						led_matrix_acum /= 10;
 						if(led_matrix_acum > 408){
 							matrix_value = 8;
 						}else{
