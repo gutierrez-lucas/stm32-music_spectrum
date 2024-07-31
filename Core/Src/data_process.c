@@ -16,9 +16,6 @@ extern uint8_t adc_to_point[409];
 
 void process_task(void *pvParameters);
 
-void print_lut_display_fft(void);
-void print_lut_display_adc(void);
-
 xTaskHandle process_task_handle = NULL;
 extern xTaskHandle main_task_handle;
 extern xTaskHandle display_task_handle;
@@ -29,6 +26,8 @@ static void MX_TIM3_Init(void);
 
 extern QueueHandle_t led_matrix_queue;
 extern QueueHandle_t display_queue;
+
+#define AVERAGE_LED_SAMPLES_AMOUNT 3
 
 #define PERIOD_20KHZ 256
 #define PERIOD_10KHZ 512
@@ -64,7 +63,6 @@ void change_max_freq(uint8_t freq){
 }
 
 struct cmpx complex_samples[BUFFER_SIZE];
-
 
 bool data_process_init(){
     data_process_DMA();
@@ -115,8 +113,8 @@ void process_task(void *pvParameters){
 			max_index = 0;
 			max_amplitude = 0;
 
-			uint8_t aux_counter = 0, samples_to_ledmatrix=0;
-			uint32_t led_matrix_acum = 0;
+			uint8_t average_led_samples = 0, samples_to_ledmatrix=0;
+			uint32_t average_led_acum = 0;
 			for(uint16_t k = 1; k <= BUFFER_SIZE/2; k++){
 // #define CONFIG_USE_MATH_ABS
 #ifdef CONFIG_USE_MATH_ABS
@@ -141,19 +139,19 @@ void process_task(void *pvParameters){
 				}
 
 				if(samples_to_ledmatrix < 8 && k>1){
-					led_matrix_acum += amplitude;
-					aux_counter++;
-					if(aux_counter == 3){
-						led_matrix_acum /= 3;
-						led_matrix_acum /= 10;
-						if(led_matrix_acum > 408){
-							matrix_value = 8;
+					average_led_acum += amplitude;
+					average_led_samples++;
+					if(average_led_samples == AVERAGE_LED_SAMPLES_AMOUNT){
+						average_led_acum /= AVERAGE_LED_SAMPLES_AMOUNT; 
+						average_led_acum /= 10;
+						if(average_led_acum > 408){ // size of the LUT
+							matrix_value = 8;		// max led matrix value
 						}else{
-							matrix_value = adc_to_matrix_point[led_matrix_acum];
+							matrix_value = adc_to_matrix_point[average_led_acum];
 						}
 						xQueueSend(led_matrix_queue, (uint8_t*)&matrix_value, 0);
-						led_matrix_acum = 0;
-						aux_counter = 0;
+						average_led_acum = 0;
+						average_led_samples = 0;
 						samples_to_ledmatrix++;
 					}
 				}
@@ -164,26 +162,6 @@ void process_task(void *pvParameters){
 		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
 	}
 	vTaskDelete(process_task_handle);
-}
-
-void print_lut_display_adc(void){
-	printf("----\r\n");
-	double aux;
-	for(uint16_t i=0; i<409; i++){
-		aux = i*8/409;
-		printf("%d,", (uint8_t)aux);
-	}
-	printf("-----\r\n");
-}
-
-void print_lut_display_fft(void){
-	printf("----\r\n");
-	double aux;
-	for(uint16_t i=0; i<655; i++){
-		aux = i*64/655;
-		printf("%d,", (uint8_t)aux);
-	}
-	printf("-----\r\n");
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1){

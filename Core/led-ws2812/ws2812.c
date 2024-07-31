@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define CONFIG_MIRROR_MATRIX
+#define CONFIG_MIRROR_MATRIX  // comment if want the led secuence be from right to left
 
 uint8_t rgbw_arr[NUM_OF_LEDS * BYTES_PER_LED * 8 + 1];//every pixel colour info is 24 bytes long
 
@@ -11,7 +11,7 @@ void rgb_matrix_clear_buffer(uint8_t *buffer, uint16_t bytenumber) {
 	for (uint32_t i = 0; i < bytenumber-1; ++i) {
 		buffer[i] = LOW_BIT;
 	}
-	buffer[bytenumber] = 0;//needs to be 0 to silent PWM at the end of transaction
+	buffer[bytenumber] = 0; 
 }
 
 void rgb_process_colors(rgb_mode_t mode, uint8_t* colors, uint8_t amplitude){
@@ -36,7 +36,7 @@ void rgb_process_colors(rgb_mode_t mode, uint8_t* colors, uint8_t amplitude){
 		case(COLOR_RED):
 				 colors[0] = 255; colors[1] =   0; colors[2] =   0; break;
 		case(COLOR_GREEN):
-				 colors[0] =   0; colors[1] =   255; colors[2] =   0; break;
+				 colors[0] =   0; colors[1] = 255; colors[2] =   0; break;
 		default: 
 				 colors[0] =   0; colors[1] =   0; colors[2] =   0; break;
 	}
@@ -49,22 +49,22 @@ void rgb_process_mirror(uint8_t* coordinates){
 void rgb_process_rotation(rotation_t rotation, uint8_t* coordinates, uint8_t x, uint8_t y){
 	switch (rotation) {
 		case ROTATION_0:
-			coordinates[1] = y;
 			coordinates[0] = x;
+			coordinates[1] = y;
 			break;
 		case ROTATION_90:
-			coordinates[1] = x;
 			coordinates[0] = MATRIX_SIZE - y + 1;
+			coordinates[1] = x;
 			break;
 		case ROTATION_180:
-			coordinates[1] = MATRIX_SIZE - y + 1;
 			coordinates[0] = MATRIX_SIZE - x + 1;
+			coordinates[1] = MATRIX_SIZE - y + 1;
 			break;
 		case ROTATION_270:
-			coordinates[1] = MATRIX_SIZE - x + 1;
 			coordinates[0] = y;
+			coordinates[1] = MATRIX_SIZE - x + 1;
 			break;
-		default: coordinates[1] = y; coordinates[0] = x; break;
+		default: coordinates[0] = x; coordinates[1] = y;  break;
 	}
 }
 
@@ -74,7 +74,7 @@ uint32_t rgb_matrix_set_pixel(uint8_t *buffer, rgb_mode_t mode, uint8_t x, uint8
 
 	uint8_t y_rot, x_rot;
 	uint8_t colors[3] = {100,0,0};
-	uint8_t coordinates[2] = {1,1};
+	uint8_t coordinates[2] = {1,1}; // x,y
 
 	rgb_process_colors(mode, colors, y);
 	rgb_process_rotation(rotation, coordinates, x, y);
@@ -114,8 +114,6 @@ uint32_t rgb_matrix_set_pixel(uint8_t *buffer, rgb_mode_t mode, uint8_t x, uint8
 	return 1;
 }
 
-bool done = false;
-
 void matrix_test_secuential(rotation_t rotation){
 	static uint8_t x_counter = 1, y_counter = 1;
 
@@ -146,7 +144,7 @@ void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rot
 	if (x == 8){
 		iteration++;
 	}
-	if(iteration == 2){
+	if(iteration == 2){  // if a faster movement down wanted change 2 to 1
 		iteration = 0;
 		for(uint8_t i=0; i<8; i++){
 			if(max_y[i] > 0){
