@@ -45,6 +45,7 @@ void display_task(void *pvParameters){
 	bool res = false;
 	uint16_t display_buffer;
 	uint8_t index = 0;
+	uint32_t last_power_payload = 0;
 	uint16_t power_to_display = 0;
 
 	notification_union notify;
@@ -56,7 +57,11 @@ void display_task(void *pvParameters){
 
 		if(check_use_display(notify.section.configuration)){
 			if (check_plot_mode_power(notify.section.configuration) == true){
+				if( last_power_payload >= notify.section.payload){
+					goto end_screen; // do clear and update screen to show the same so it can avoid flickering
+				}
 				power_to_display = notify.section.payload/65; //so 2^16 fits in 1000
+				last_power_payload = notify.section.payload;
 			}
 			SSD1306_Clear();
 			for(uint8_t i = 0; i < 128; i++){
@@ -80,6 +85,7 @@ void display_task(void *pvParameters){
 					}
 				}
 			}
+end_screen:
 			if(check_show_max_freq(notify.section.configuration)){
 				SSD1306_GotoXY(80,10);
 				SSD1306_Puts("MAX FREQ:", &Font_7x10, 1);

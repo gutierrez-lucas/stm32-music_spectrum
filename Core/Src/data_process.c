@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <math.h>
 #include "main.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -82,11 +83,9 @@ void process_task(void *pvParameters){
 	HAL_ADC_Start_DMA(&hadc1, (uint16_t*)adc_buffer, BUFFER_SIZE); //Link DMA to ADC1
 	HAL_TIM_Base_Start(&htim3);
 
-	char str_buff[10];
 	uint16_t display_value;
-	notification_union notify;
 
-	uint32_t amplitude, auxiliar;
+	uint32_t amplitude;
 	uint64_t power;
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
@@ -121,19 +120,13 @@ void process_task(void *pvParameters){
 			uint32_t average_led_acum = 0;
 
 			for(uint16_t k = 1; k < BUFFER_SIZE; k++){
-#define CONFIG_USE_MATH_ABS
-#ifdef CONFIG_USE_MATH_ABS
+
 				amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
-#else
-				amplitude = (uint32_t)(complex_samples[k].real)<<1;
-				auxiliar = (uint32_t)(complex_samples[k].imag)<<1;
-				amplitude = (amplitude+auxiliar)>>1;
-#endif
+
 				if(check_plot_mode_power(menu_notification.section.configuration) || check_show_max_power(menu_notification.section.configuration)){
 					power += abs(amplitude)*abs(amplitude);
 					if(k == BUFFER_SIZE - 1){
 						power = power/BUFFER_SIZE;
-						printf("Power: %d\r\n", (uint32_t)power);
 						menu_notification.section.payload = power;
 						break;
 					}

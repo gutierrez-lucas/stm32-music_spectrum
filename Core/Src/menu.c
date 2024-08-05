@@ -59,7 +59,7 @@ static void menu_task(void *pvParameters){
 		.idle_encoder_position = get_encoder(),
 		.current_encoder_position = 0, 
 		.menu_id = true,
-		.using_menu = true
+		.using_menu = true 
 	};
 
 	uint8_t current_action = UNPRESSED, last_action = UNUSED;
@@ -76,7 +76,6 @@ static void menu_task(void *pvParameters){
 			if( menu_internals.current_encoder_position != menu_internals.idle_encoder_position ){
 				menu_internals.using_menu = true;
 			}else{
-				xTaskNotifyGive(process_task_handle);
 				xTaskNotify(process_task_handle, menu_selection.stream, eSetValueWithOverwrite);
 				ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 			}
@@ -105,6 +104,7 @@ static void menu_task(void *pvParameters){
 						return_to_main_menu(&menu_internals);
 						break;
 					case MENU_ID_PLOT+MENU_SELECTION_PLOT_POWER:
+						set_show_max_power(menu_selection.section.configuration);
 						set_plot_mode_power(menu_selection.section.configuration);
 						return_to_main_menu(&menu_internals);
 						break;
@@ -316,7 +316,7 @@ void load_default_configuration(notification_union* foo){
 	set_plot_mode_freq(foo->section.configuration);
 	toggle_use_matrix(foo->section.configuration);
 	toggle_use_display(foo->section.configuration);
-	set_show_none(foo->section.configuration);
+	set_show_max_freq(foo->section.configuration);
 	toogle_highlight_max(foo->section.configuration);
 	toggle_use_log_scale(foo->section.configuration);
 }
