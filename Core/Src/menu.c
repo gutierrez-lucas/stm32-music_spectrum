@@ -269,9 +269,10 @@ void menu_task(void *pvParameters){
 					current_selected_element = FIRST_MENU_ELEMENT;
 				}
 			}else if(difference_position < -ENCODER_MENU_STEP){
-				current_selected_element--;
-				if(current_selected_element < FIRST_MENU_ELEMENT){
+				if(current_selected_element == 0){
 					current_selected_element = get_amount_of_menu_elements(menu_id);
+				}else{
+					current_selected_element--;
 				}
 			}
 
