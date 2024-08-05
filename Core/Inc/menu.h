@@ -4,25 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "main.h"
+#include "menu_elements.h"
 
 void load_default_configuration(notification_union* foo);
-
-#define FREQ_1          0b0000000000000001
-#define FREQ_2          0b0000000000000010
-#define FREQ_3          0b0000000000000100
-#define FREQ_PART       0b0000000000000111
-#define PLOT_POWER      0b0000000000001000
-#define PLOT_TIME       0b0000000000010000
-#define PLOT_FREQ       0b0000000000100000
-#define PLOT_PART       0b0000000000111000
-#define USE_MATRIX      0b0000000001000000
-#define USE_DISPLAY     0b0000000010000000
-#define SHOW_MAX_FREQ   0b0000000100000000
-#define SHOW_MAX_POW    0b0000001000000000
-#define SHOW_NONE       0b0000010000000000
-#define SHOW_PART       0b0000011100000000
-#define HIGHLIGHT_MAX   0b0000100000000000
-#define USE_LOG_SCALE   0b0001000000000000
 
 #define set_max_freq_20k(x) x&=~FREQ_PART; x |= FREQ_1
 #define set_max_freq_10k(x) x&=~FREQ_PART; x |= FREQ_2

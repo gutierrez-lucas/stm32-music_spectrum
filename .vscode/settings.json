@@ -19,6 +19,7 @@
         "task_utils.h": "c",
         "queue.h": "c",
         "display.h": "c",
-        "ws2812.h": "c"
+        "ws2812.h": "c",
+        "menu.h": "c"
     }
 }
