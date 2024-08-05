@@ -1,3 +1,3 @@
 # stm32-music_spectrum
 
-![](https://i.imgur.com/Xe8axe3.gif)
+![](https://github.com/gutierrez-lucas/stm32-music_spectrum/blob/main/sample.gif)
