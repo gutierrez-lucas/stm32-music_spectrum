@@ -74,6 +74,9 @@ void ledmatrix_task(void *pvParameters){
 				rgb_ready = false;
 				HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, rgbw_arr, sizeof(rgbw_arr));
 			}
+		}else{
+			rgb_matrix_clear_buffer(rgbw_arr, sizeof(rgbw_arr));
+			HAL_TIM_PWM_Start_DMA(&htim2, TIM_CHANNEL_1, rgbw_arr, sizeof(rgbw_arr));
 		}
 		xTaskNotifyGive(menu_task_handle);
 	}
