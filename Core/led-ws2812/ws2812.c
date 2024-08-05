@@ -131,33 +131,35 @@ void matrix_test_secuential(rotation_t rotation){
 	}
 }
 
-void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rotation){
+void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rotation, bool highlight){
 	static uint8_t max_y[8] = {0,0,0,0,0,0,0,0};
 	static uint8_t iteration = 0;
 
 	for(uint8_t i=y1; i<=y2; i++){
 		rgb_matrix_set_pixel(rgbw_arr, COLOR_LIMITS, x, i, rotation);
 	}
-	if(max_y[x-1] < y2){
-		max_y[x-1] = y2;
-	}
-	if (x == 8){
-		iteration++;
-	}
-	if(iteration == 2){  // if a faster movement down wanted change 2 to 1
-		iteration = 0;
-		for(uint8_t i=0; i<8; i++){
-			if(max_y[i] > 0){
-				max_y[i]--;
+	if(highlight == true){
+		if(max_y[x-1] < y2){
+			max_y[x-1] = y2;
+		}
+		if (x == 8){
+			iteration++;
+		}
+		if(iteration == 2){  // if a faster movement down wanted change 2 to 1
+			iteration = 0;
+			for(uint8_t i=0; i<8; i++){
+				if(max_y[i] > 0){
+					max_y[i]--;
+				}
 			}
 		}
-	}
-	if(max_y[x-1] > 0){
-		rgb_matrix_set_pixel(rgbw_arr, COLOR_OFF, x, max_y[x-1]+1, rotation);
-		if(max_y[x-1] == 1){
-			rgb_matrix_set_pixel(rgbw_arr, COLOR_GREEN, x, max_y[x-1], rotation);
-		}else{
-			rgb_matrix_set_pixel(rgbw_arr, COLOR_RED, x, max_y[x-1], rotation);
+		if(max_y[x-1] > 0){
+			rgb_matrix_set_pixel(rgbw_arr, COLOR_OFF, x, max_y[x-1]+1, rotation);
+			if(max_y[x-1] == 1){
+				rgb_matrix_set_pixel(rgbw_arr, COLOR_GREEN, x, max_y[x-1], rotation);
+			}else{
+				rgb_matrix_set_pixel(rgbw_arr, COLOR_RED, x, max_y[x-1], rotation);
+			}
 		}
 	}
 }
@@ -167,7 +169,7 @@ void matrix_test_pyramid(rotation_t rotation){
 	static uint8_t iteration_x = 1;
 	static uint8_t iteration_y = 1;
 
-	matrix_draw_vertical_line(iteration_x, 1, iteration_y, rotation+rotation_change);
+	matrix_draw_vertical_line(iteration_x, 1, iteration_y, rotation+rotation_change, false);
 	if(iteration_x >= 5){
 		iteration_y--;
 	}else{

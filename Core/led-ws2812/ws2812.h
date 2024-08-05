@@ -37,7 +37,7 @@ void rgb_process_rotation(rotation_t rotation, uint8_t* coordinates, uint8_t x, 
 uint32_t rgb_matrix_set_pixel(uint8_t *buffer, rgb_mode_t mode, uint8_t x, uint8_t y, rotation_t rotation);
 void matrix_test_secuential(rotation_t rotation);
 void matrix_test_pyramid(rotation_t rotation);
-void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rotation);
+void matrix_draw_vertical_line(uint8_t x, uint8_t y1, uint8_t y2, rotation_t rotation, bool highlight);
 void matrix_test_vertical_levels(rotation_t rotation, show_mode_t mode);
 
 #endif

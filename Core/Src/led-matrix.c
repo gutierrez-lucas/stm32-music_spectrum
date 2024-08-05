@@ -68,7 +68,7 @@ void ledmatrix_task(void *pvParameters){
 			}
 			for(uint8_t i = 1; i <= 8; i++){ 
 				xQueueReceive(led_matrix_queue, &matrix_value, pdMS_TO_TICKS(1));
-				matrix_draw_vertical_line(i, 1, matrix_value, ROTATION_270);
+				matrix_draw_vertical_line(i, 1, matrix_value, ROTATION_270, check_highlight_max(notify.section.configuration));
 				while( rgb_ready != true ){ vTaskDelay(pdMS_TO_TICKS(1)); }
 				vTaskDelay(pdMS_TO_TICKS(1));
 				rgb_ready = false;
