@@ -11,6 +11,7 @@
 #include "menu.h"
 
 extern uint8_t linear_to_log_x[128];
+extern uint8_t linear_to_linear_display_y[1000];
 
 void display_task(void *pvParameters);
 static void MX_I2C1_Init(void);
@@ -44,6 +45,7 @@ void display_task(void *pvParameters){
 	bool res = false;
 	uint16_t display_buffer;
 	uint8_t index = 0;
+	uint16_t power_to_display = 0;
 
 	notification_union notify;
 
@@ -53,6 +55,9 @@ void display_task(void *pvParameters){
 		xTaskNotifyWait(0, 0, &notify.stream, portMAX_DELAY);
 
 		if(check_use_display(notify.section.configuration)){
+			if (check_plot_mode_power(notify.section.configuration) == true){
+				power_to_display = notify.section.payload/65; //so 2^16 fits in 1000
+			}
 			SSD1306_Clear();
 			for(uint8_t i = 0; i < 128; i++){
 				if(check_use_log_scale(notify.section.configuration) == true){
@@ -61,7 +66,11 @@ void display_task(void *pvParameters){
 					index = i;
 				}
 				if (check_plot_mode_power(notify.section.configuration) == true){
-					SSD1306_DrawLine(index, 64, index, 64-notify.section.payload, 1);
+					if(power_to_display > 999){
+						SSD1306_DrawLine(index, 64, index, 0, 1);
+					}else{
+						SSD1306_DrawLine(index, 64, index, 64-linear_to_linear_display_y[power_to_display], 1);
+					}
 				}else{
 					xQueueReceive(display_queue, &display_buffer, pdMS_TO_TICKS(1));
 					if(check_plot_mode_time(notify.section.configuration) == true){
@@ -73,6 +82,14 @@ void display_task(void *pvParameters){
 			}
 			if(check_show_max_freq(notify.section.configuration)){
 				SSD1306_GotoXY(80,10);
+				SSD1306_Puts("MAX FREQ:", &Font_7x10, 1);
+				SSD1306_GotoXY(80,25);
+				sprintf(str_buff, "%4d", notify.section.payload);
+				SSD1306_Puts(str_buff, &Font_7x10, 1);
+			}else if(check_show_max_power(notify.section.configuration)){
+				SSD1306_GotoXY(80,10);
+				SSD1306_Puts("POWER:", &Font_7x10, 1);
+				SSD1306_GotoXY(80,25);
 				sprintf(str_buff, "%4d", notify.section.payload);
 				SSD1306_Puts(str_buff, &Font_7x10, 1);
 			}

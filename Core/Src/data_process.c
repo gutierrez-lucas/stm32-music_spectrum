@@ -28,6 +28,7 @@ extern QueueHandle_t led_matrix_queue;
 extern QueueHandle_t display_queue;
 
 #define AVERAGE_LED_SAMPLES_AMOUNT 3
+#define INDICATOR_SAMPLES_BY_UPDATE 4
 
 #define PERIOD_20KHZ 256
 #define PERIOD_10KHZ 512
@@ -90,6 +91,7 @@ void process_task(void *pvParameters){
 	uint16_t max_amplitude = 0;
 	uint8_t max_index = 0;
 	uint8_t matrix_value = 0;
+	uint8_t indicator_updates = 0;
 
 	notification_union menu_notification;
 	load_default_configuration(&menu_notification.section.configuration);
@@ -113,29 +115,26 @@ void process_task(void *pvParameters){
 
 			max_index = 0;
 			max_amplitude = 0;
+			power = 0;
 
 			uint8_t average_led_samples = 0, samples_to_ledmatrix=0;
 			uint32_t average_led_acum = 0;
 
 			for(uint16_t k = 1; k < BUFFER_SIZE; k++){
-// #define CONFIG_USE_MATH_ABS
+#define CONFIG_USE_MATH_ABS
 #ifdef CONFIG_USE_MATH_ABS
-			amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
+				amplitude = (uint16_t)sqrt((uint16_t)complex_samples[k].real*(uint16_t)complex_samples[k].real + (uint16_t)complex_samples[k].imag*(uint16_t)(uint16_t)complex_samples[k].imag);
 #else
 				amplitude = (uint32_t)(complex_samples[k].real)<<1;
 				auxiliar = (uint32_t)(complex_samples[k].imag)<<1;
 				amplitude = (amplitude+auxiliar)>>1;
 #endif
-				if(check_plot_mode_power(menu_notification.section.configuration)){
-					power += abs(amplitude)<<1;
+				if(check_plot_mode_power(menu_notification.section.configuration) || check_show_max_power(menu_notification.section.configuration)){
+					power += abs(amplitude)*abs(amplitude);
 					if(k == BUFFER_SIZE - 1){
 						power = power/BUFFER_SIZE;
-						if( power > 999 ){
-							menu_notification.section.payload = 64;
-						}else{
-							menu_notification.section.payload = linear_to_linear_display_y[power];
-						}
-						power = 0;
+						printf("Power: %d\r\n", (uint32_t)power);
+						menu_notification.section.payload = power;
 						break;
 					}
 				}else{
@@ -177,11 +176,13 @@ void process_task(void *pvParameters){
 					}
 				}
 			}
-			if(check_show_max_freq(menu_notification.section.configuration)){
+			if(check_show_max_freq(menu_notification.section.configuration) && indicator_updates++ == INDICATOR_SAMPLES_BY_UPDATE){
+				indicator_updates = 0;
 				menu_notification.section.payload = max_index*band_resolution;
 			}
 			xTaskNotify(display_task_handle, menu_notification.stream, eSetValueWithOverwrite);
 		}
+		HAL_ADC_Start_DMA(&hadc1, (uint16_t*)adc_buffer, BUFFER_SIZE); //Link DMA to ADC1
 		xTaskNotifyWait(0, 0, &menu_notification, portMAX_DELAY);
 	}
 	vTaskDelete(process_task_handle);
@@ -189,6 +190,7 @@ void process_task(void *pvParameters){
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1){
 	trace_toggle(AUXILIAR_TAG_1);
+	HAL_ADC_Stop_DMA(&hadc1);
 	adc_conversion_done = true;
 }
 

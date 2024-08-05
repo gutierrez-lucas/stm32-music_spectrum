@@ -36,6 +36,7 @@ void load_default_configuration(notification_union* foo);
 #define check_use_display(x) x&USE_DISPLAY ? true : false
 #define check_use_matrix(x) x&USE_MATRIX ? true : false
 #define check_show_max_freq(x) x&SHOW_MAX_FREQ ? true : false
+#define check_show_max_power(x) x&SHOW_MAX_POW ? true : false
 #define check_plot_mode_freq(x) x&PLOT_FREQ ? true : false
 #define check_plot_mode_time(x) x&PLOT_TIME ? true : false
 #define check_plot_mode_power(x) x&PLOT_POWER ? true : false
